@@ -113,7 +113,7 @@ def compute_tail_risk(
     terminal_prices = price_paths[:, -1, :]  # shape (n_paths, n_assets)
     drawdowns = (terminal_prices - current_prices) / current_prices
     #Then compute VaR at the 5th percentile:
-    var_5 = np.percentile(drawdowns, 5, axis=0) 
+    var_5 = np.percentile(drawdowns, 5, axis=0)
     #And CVaR (mean of everything below that threshold):
     cvar_5 = np.zeros(n_assets)
     for i in range(n_assets):

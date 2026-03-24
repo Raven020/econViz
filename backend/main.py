@@ -4,10 +4,14 @@
 import uvicorn
 from fastapi import FastAPI
 
+from backend.api import routes_dashboard, routes_drilldown, routes_montecarlo, routes_refresh
+
 app = FastAPI(title="EconViz Analytics Backend")
 
-# TODO: register route modules
-# from backend.api import routes_dashboard, routes_drilldown, routes_montecarlo, routes_refresh
+app.include_router(routes_dashboard.router)
+app.include_router(routes_drilldown.router)
+app.include_router(routes_montecarlo.router)
+app.include_router(routes_refresh.router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

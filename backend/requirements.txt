@@ -11,3 +11,7 @@ yfinance
 fredapi
 requests
 duckdb
+
+# Testing
+pytest
+httpx
