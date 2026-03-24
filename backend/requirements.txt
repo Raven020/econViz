@@ -1,0 +1,13 @@
+# Core
+fastapi
+uvicorn[standard]
+numpy
+scipy
+hmmlearn
+pandas
+
+# Data
+yfinance
+fredapi
+requests
+duckdb

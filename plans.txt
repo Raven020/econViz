@@ -1,0 +1,533 @@
+================================================================================
+                        ECON VIZ — Web Dashboard
+                              Specification v2.0
+================================================================================
+
+1. OVERVIEW
+--------------------------------------------------------------------------------
+A real-time economy dashboard that displays live pricing across major asset
+classes, macro indicators, and regime-aware Monte Carlo projections. The system
+uses a three-tier architecture: Next.js + MUI frontend, C# ASP.NET Core API
+gateway, and Python FastAPI analytical backend.
+
+
+2. TRACKED INSTRUMENTS & INDICATORS
+--------------------------------------------------------------------------------
+
+  EQUITIES (ETFs)
+    - SPY   (S&P 500)
+    - IWM   (Russell 2000)
+    - QQQ   (Nasdaq 100)
+    - DIA   (Dow Jones)
+
+  COMMODITIES
+    - Crude Oil (WTI)
+    - Gold
+    - Silver
+    - Natural Gas
+    - Copper
+    - Wheat
+
+  CRYPTO
+    - BTC  (Bitcoin)
+    - ETH  (Ethereum)
+    - SOL  (Solana)
+
+  FIXED INCOME & RATES
+    - US 10-Year Treasury Yield
+    - US 2-Year Treasury Yield
+    - 2s10s Yield Curve Spread (10Y minus 2Y)
+
+  VOLATILITY & FX
+    - VIX (CBOE Volatility Index)
+    - DXY (US Dollar Index)
+
+  MACRO INDICATORS
+    - Inflation Expectations (e.g. 5Y breakeven)
+    - Initial Jobless Claims (weekly)
+
+
+3. ARCHITECTURE
+--------------------------------------------------------------------------------
+
+  THREE-TIER DESIGN
+
+    ┌────────────────────┐
+    │   Next.js + MUI    │   Port 3000
+    │     (Frontend)     │   React, TypeScript
+    └────────┬───────────┘
+             │  REST + SignalR WebSocket
+             ▼
+    ┌────────────────────┐
+    │  C# ASP.NET Core   │   Port 5000
+    │   (API Gateway)    │   BFF pattern
+    └────────┬───────────┘
+             │  HTTP (internal)
+             ▼
+    ┌────────────────────┐
+    │  Python FastAPI     │   Port 8000
+    │ (Analytics Backend) │   HMM, Monte Carlo, data fetching
+    └────────┬───────────┘
+             │
+             ▼
+    ┌────────────────────┐
+    │      DuckDB        │   Single-file columnar DB
+    │  (Local Storage)   │
+    └────────────────────┘
+
+  WHY THREE TIERS
+    - Python: best-in-class ecosystem for finance data (yfinance, fredapi)
+      and statistical modeling (hmmlearn, NumPy, SciPy)
+    - C#: ASP.NET Core provides a performant API gateway with SignalR for
+      real-time WebSocket push, response caching, and request aggregation
+    - Next.js + MUI: modern React framework with server-side rendering and
+      a polished component library for data-dense UIs
+
+  REQUEST FLOW
+    1. User loads dashboard → Next.js calls C# gateway
+    2. C# checks in-memory cache → cache hit? return instantly
+    3. Cache miss → C# calls Python FastAPI → gets data → caches → returns
+    4. When a refresh completes, C# pushes updates to all connected
+       clients via SignalR WebSocket
+
+
+4. MAIN DASHBOARD VIEW
+--------------------------------------------------------------------------------
+The default screen shows a grid/table of all tracked instruments with:
+  - Current price / level
+  - Daily change (absolute & percentage)
+  - Color-coded directional signal (green/red)
+  - Sparkline chart (inline via Recharts or MUI X Charts)
+  - Current regime label and confidence displayed in a banner
+
+Layout uses MUI DataGrid or a custom card-based grid. Responsive design
+for desktop and tablet viewports.
+
+
+5. ANALYTICAL PIPELINE
+--------------------------------------------------------------------------------
+The core analytical engine runs entirely in Python. It is a three-stage
+pipeline:
+
+  STAGE 1 — GLOBAL HIDDEN MARKOV MODEL (HMM)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Inputs:
+    - Rolling returns for all tracked assets
+    - Macro indicators (yields, spreads, VIX, DXY, inflation expectations,
+      jobless claims)
+
+  Outputs:
+    - Current macro regime classification (Bull, Bear, Stagnation,
+      Stagflation, Crisis)
+    - Regime confidence score (probability of being in current state)
+    - Transition probability matrix (probability of moving to each other
+      regime within the next 30 days)
+
+  Timeframe: 30-day forward-looking window
+  Training window: 5 years rolling, batch retrain daily
+
+  STAGE 2 — REGIME-CONDITIONED PARAMETERS
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  For the identified regime (weighted by confidence):
+    - Compute regime-specific mean return vector (per asset)
+    - Compute regime-specific covariance matrix (cross-asset)
+
+  These parameters reflect the statistical behavior of assets under the
+  current macro regime, not unconditional historical averages.
+
+  STAGE 3 — MULTIVARIATE MONTE CARLO SIMULATION
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Inputs:
+    - Regime-conditioned mean returns
+    - Regime-conditioned covariance matrix
+
+  Process:
+    - Draw correlated return paths from the multivariate distribution
+    - Simulate 10,000 paths over 30-day forward horizon
+    - Use Student's t-distribution for fat-tailed simulation in
+      Crisis/Bear regimes
+    - Respect cross-asset correlation structure so projections are
+      internally consistent
+
+  Outputs (per asset):
+    - Projection cones (10th / 25th / 50th / 75th / 90th percentiles)
+    - Expected value path
+    - Tail risk metrics
+
+  Key property: Because all assets share the same correlated simulation,
+  projection cones are CONSISTENT with each other — if equities project
+  down in a risk-off regime, safe havens project accordingly.
+
+
+6. DRILL-DOWN VIEW
+--------------------------------------------------------------------------------
+Clicking an instrument row/card (or navigating to /instrument/[ticker])
+opens a detail page showing:
+
+  PRICE INFORMATION
+    - Current price
+    - Daily high / low
+    - Volume
+    - 24-hour volume change (%)
+
+  PRICE CHART
+    - Interactive line/candlestick chart (Recharts or Nivo)
+    - Configurable timeframe (1D, 1W, 1M, 3M, 1Y)
+
+  MONTE CARLO PROJECTION CONES
+    - Forward projection chart with percentile bands (10/25/50/75/90)
+    - Rendered as a filled area chart
+    - Derived from the global multivariate simulation (Stage 3)
+
+  REGIME CONTEXT
+    - Current regime label and confidence
+    - This asset's regime-conditioned expected return
+    - Key correlated assets and their directional alignment
+
+
+7. INTERACTION MODEL
+--------------------------------------------------------------------------------
+  - Web-based, mouse and keyboard driven
+  - Dashboard grid is clickable — click instrument to drill down
+  - Command palette (MUI Autocomplete) for quick navigation by typing
+    instrument names (Ctrl+K or / to open)
+  - Keyboard shortcuts: Esc to return to dashboard, arrow keys to
+    navigate grid
+  - Refresh button triggers data fetch + HMM retrain
+  - SignalR pushes updates automatically when refresh completes
+  - Responsive layout: desktop-first, functional on tablet
+
+
+8. DATA SOURCES
+--------------------------------------------------------------------------------
+
+  YAHOO FINANCE (via yfinance Python library)
+    - SPY, IWM, QQQ, DIA — price, volume, daily high/low
+    - Crude Oil (CL=F), Gold (GC=F), Silver (SI=F), Natural Gas (NG=F),
+      Copper (HG=F), Wheat (ZW=F)
+    - VIX (^VIX)
+    - DXY (DX-Y.NYB)
+
+  COINGECKO API
+    - BTC, ETH, SOL
+    - Price, volume, 24h volume change
+
+  FRED API (Federal Reserve Economic Data)
+    - Fed Funds Rate
+    - Inflation expectations (e.g. T5YIE — 5-Year Breakeven)
+    - Initial Jobless Claims
+    - Yield curve spreads (T10Y2Y — 2s10s spread)
+
+  US TREASURY WEBSITE
+    - Daily yield curve rates (2Y, 10Y, and full curve)
+
+
+9. HMM REGIME DEFINITIONS (5 States)
+--------------------------------------------------------------------------------
+
+  1. BULL
+     - Growth expansion, risk-on environment
+     - Equities trending up, credit spreads tight, moderate volatility
+     - Typical: SPY/QQQ rising, VIX low, yields stable or rising with growth
+
+  2. BEAR
+     - Contraction, risk-off environment
+     - Equities grinding lower, widening spreads, rising defensive positioning
+     - Typical: SPY/QQQ declining, bonds bid, DXY mixed
+
+  3. STAGNATION
+     - Sideways, low volatility, low growth
+     - Range-bound markets, muted returns, low conviction
+     - Typical: flat equities, low VIX, stable yields, low volume
+
+  4. STAGFLATION
+     - Low growth combined with rising inflation
+     - Correlation structure flips: stocks down, bonds also down (no haven),
+       commodities up
+     - Typical: rising inflation expectations, gold/oil up, equities weak,
+       yields rising despite weak growth
+
+  5. CRISIS
+     - Acute stress, extreme volatility, liquidity breakdown
+     - Correlations spike toward 1, violent drawdowns, panic selling
+     - Typical: VIX 35+, sharp equity drops, flight to cash/treasuries,
+       credit freezes
+
+  TRAINING
+     - Lookback window: 5 years rolling
+     - Calibration: batch retrain daily
+     - Timeframe: 30-day forward regime classification
+
+
+10. API SURFACE
+--------------------------------------------------------------------------------
+
+  C# GATEWAY → FRONTEND (Port 5000)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  REST Endpoints:
+    GET  /api/dashboard
+      → Aggregated response: all instruments with prices, daily change,
+        sparkline data, and current regime info
+      → C# composes this from multiple Python endpoints, caches result
+
+    GET  /api/instrument/{ticker}
+      → Price detail: current, high, low, volume, volume change
+
+    GET  /api/instrument/{ticker}/chart?period=1M
+      → Historical OHLCV data for charting
+
+    GET  /api/instrument/{ticker}/projections
+      → Monte Carlo percentile paths (10/25/50/75/90)
+
+    GET  /api/regime
+      → Current regime, confidence, transition matrix
+
+    POST /api/refresh
+      → Triggers data fetch + HMM retrain, returns immediately
+      → Pushes completion + updated data via SignalR when done
+
+    GET  /api/health
+      → Gateway health + Python backend health status
+
+  SignalR Hub (/hubs/market):
+    - MarketDataUpdated  → pushed after refresh completes, carries
+      updated dashboard payload
+    - RegimeChanged      → pushed when regime classification changes
+    - RefreshProgress    → pushed during refresh with status messages
+
+  PYTHON FASTAPI → C# GATEWAY (Port 8000, internal only)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    GET  /internal/instruments
+      → All instrument prices + daily changes
+
+    GET  /internal/instrument/{ticker}
+      → Price detail for one instrument
+
+    GET  /internal/instrument/{ticker}/history?period=1M
+      → Historical OHLCV from DuckDB
+
+    GET  /internal/instrument/{ticker}/projections
+      → Monte Carlo results from latest simulation
+
+    GET  /internal/regime
+      → Current regime state from latest HMM run
+
+    POST /internal/refresh
+      → Execute full pipeline: fetch data → retrain HMM → run MC
+
+    GET  /internal/health
+      → Python service health + DuckDB connectivity
+
+
+11. C# GATEWAY RESPONSIBILITIES
+--------------------------------------------------------------------------------
+
+  REQUEST AGGREGATION
+    - Dashboard endpoint composes data from multiple Python endpoints
+      into a single response optimized for the frontend
+    - Reduces frontend HTTP calls from many to one per page
+
+  RESPONSE CACHING
+    - In-memory cache (IMemoryCache) for Python responses
+    - Cache invalidated on refresh completion
+    - MC projections cached aggressively (expensive to compute,
+      only change on retrain)
+    - Price data cached with shorter TTL
+
+  SIGNALR REAL-TIME HUB
+    - WebSocket connections from all frontend clients
+    - Pushes updated data when refresh completes (no polling needed)
+    - Pushes regime change alerts immediately
+    - Pushes refresh progress so UI can show status
+
+  BACKGROUND REFRESH SCHEDULER
+    - IHostedService that triggers periodic refresh via Python API
+    - Configurable interval (default: manual only, optional auto)
+    - On completion: invalidates cache, pushes via SignalR
+
+  RATE LIMITING & VALIDATION
+    - Validates ticker parameters against known instrument list
+    - Rate limits refresh endpoint to prevent API abuse
+    - Timeout handling for Python backend calls
+
+  HEALTH MONITORING
+    - Exposes /api/health that checks own status + Python backend
+    - Logs failed Python calls for debugging
+
+
+12. DEPENDENCIES
+--------------------------------------------------------------------------------
+
+  PYTHON BACKEND
+    Core:
+      - Python 3.11+
+      - FastAPI          — REST API framework
+      - uvicorn          — ASGI server
+      - NumPy            — numerical computation, covariance matrices,
+                           multivariate Monte Carlo
+      - SciPy            — Student's t-distribution for fat-tailed simulation
+      - hmmlearn         — Gaussian Hidden Markov Model for regime detection
+
+    Data:
+      - yfinance         — equities, commodities, VIX, DXY pricing
+      - fredapi          — FRED API client for macro indicators
+      - requests         — HTTP calls (CoinGecko, US Treasury)
+
+    Storage:
+      - duckdb           — local columnar database, single file
+
+  C# GATEWAY
+    - .NET 8 / ASP.NET Core
+    - Microsoft.AspNetCore.SignalR  — real-time WebSocket hub
+    - Microsoft.Extensions.Caching.Memory  — in-memory response cache
+    - System.Net.Http (HttpClient)  — calls to Python backend
+
+  NEXT.JS FRONTEND
+    - Node.js 20+
+    - Next.js 14+ (App Router)
+    - React 18+
+    - MUI (Material UI) 5+    — component library
+    - MUI X DataGrid           — dashboard table
+    - Recharts or Nivo         — charts (price, sparklines, MC cones)
+    - @microsoft/signalr       — SignalR client for real-time updates
+    - TypeScript
+
+
+13. PROJECT STRUCTURE
+--------------------------------------------------------------------------------
+
+  econViz/
+  ├── plans.txt                          # this file
+  │
+  ├── backend/                           # Python FastAPI
+  │   ├── api/
+  │   │   ├── __init__.py
+  │   │   ├── routes_dashboard.py        # GET /internal/instruments
+  │   │   ├── routes_drilldown.py        # GET /internal/instrument/{ticker}
+  │   │   ├── routes_montecarlo.py       # GET /internal/instrument/{ticker}/projections
+  │   │   └── routes_refresh.py          # POST /internal/refresh
+  │   │
+  │   ├── data/
+  │   │   ├── __init__.py
+  │   │   ├── yahoo.py                   # yfinance — equities, commodities, VIX, DXY
+  │   │   ├── coingecko.py               # CoinGecko API — BTC, ETH, SOL
+  │   │   ├── fred.py                    # FRED API — inflation, jobless claims
+  │   │   ├── treasury.py               # US Treasury — daily yield curve rates
+  │   │   └── store.py                   # DuckDB interface — cache, read, update
+  │   │
+  │   ├── models/
+  │   │   ├── __init__.py
+  │   │   ├── hmm.py                     # HMM regime detection (hmmlearn)
+  │   │   ├── montecarlo.py              # multivariate MC with Student's t
+  │   │   └── regime.py                  # regime definitions, parameter extraction
+  │   │
+  │   ├── config.py                      # instrument lists, API keys, DB path
+  │   ├── main.py                        # entry point: uvicorn FastAPI
+  │   └── requirements.txt
+  │
+  ├── gateway/                           # C# ASP.NET Core
+  │   ├── EconViz.Gateway/
+  │   │   ├── Controllers/
+  │   │   │   ├── DashboardController.cs # GET /api/dashboard
+  │   │   │   ├── InstrumentController.cs # GET /api/instrument/{ticker}/*
+  │   │   │   ├── RegimeController.cs    # GET /api/regime
+  │   │   │   └── RefreshController.cs   # POST /api/refresh
+  │   │   │
+  │   │   ├── Hubs/
+  │   │   │   └── MarketHub.cs           # SignalR hub for real-time push
+  │   │   │
+  │   │   ├── Services/
+  │   │   │   ├── PythonApiClient.cs     # HttpClient to FastAPI backend
+  │   │   │   ├── CacheService.cs        # in-memory response caching
+  │   │   │   └── RefreshScheduler.cs    # IHostedService for periodic refresh
+  │   │   │
+  │   │   ├── Models/
+  │   │   │   ├── DashboardDto.cs        # response DTOs
+  │   │   │   ├── InstrumentDto.cs
+  │   │   │   ├── RegimeDto.cs
+  │   │   │   └── ProjectionDto.cs
+  │   │   │
+  │   │   ├── Program.cs                 # app setup, DI, middleware
+  │   │   ├── appsettings.json           # config (Python URL, cache TTL, etc.)
+  │   │   └── EconViz.Gateway.csproj
+  │   │
+  │   └── EconViz.Gateway.sln
+  │
+  ├── frontend/                          # Next.js + MUI
+  │   ├── src/
+  │   │   ├── app/
+  │   │   │   ├── layout.tsx             # root layout, MUI ThemeProvider
+  │   │   │   ├── page.tsx               # dashboard page
+  │   │   │   └── instrument/
+  │   │   │       └── [ticker]/
+  │   │   │           └── page.tsx       # drill-down page
+  │   │   │
+  │   │   ├── components/
+  │   │   │   ├── DashboardGrid.tsx      # MUI DataGrid with all instruments
+  │   │   │   ├── SparklineCell.tsx       # inline sparkline for grid rows
+  │   │   │   ├── RegimeBanner.tsx       # regime label + confidence chip
+  │   │   │   ├── PriceChart.tsx         # historical price chart (Recharts)
+  │   │   │   ├── MonteCarloChart.tsx    # projection cones (Recharts AreaChart)
+  │   │   │   ├── InstrumentDetail.tsx   # price info panel
+  │   │   │   ├── CommandPalette.tsx     # Ctrl+K search (MUI Autocomplete)
+  │   │   │   └── RefreshButton.tsx      # triggers refresh, shows progress
+  │   │   │
+  │   │   ├── hooks/
+  │   │   │   ├── useApi.ts              # REST fetch hooks (SWR or React Query)
+  │   │   │   └── useSignalR.ts          # SignalR connection + event handlers
+  │   │   │
+  │   │   ├── lib/
+  │   │   │   ├── apiClient.ts           # axios/fetch wrapper for C# gateway
+  │   │   │   └── types.ts              # TypeScript types matching gateway DTOs
+  │   │   │
+  │   │   └── theme/
+  │   │       └── theme.ts               # MUI dark theme customization
+  │   │
+  │   ├── package.json
+  │   ├── tsconfig.json
+  │   └── next.config.js
+  │
+  └── data/
+      └── econ_viz.duckdb                # local DB file (created at runtime)
+
+
+  LOGIC FLOW
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  1. Python main.py starts FastAPI on port 8000
+  2. C# gateway starts on port 5000, connects to Python backend
+  3. Next.js dev server starts on port 3000
+  4. User opens browser → Next.js loads dashboard page
+  5. Dashboard calls C# gateway GET /api/dashboard
+  6. C# gateway checks cache → miss → calls Python /internal/instruments
+     and /internal/regime → aggregates → caches → returns JSON
+  7. User clicks "Refresh" → POST /api/refresh → C# calls Python
+     /internal/refresh → Python fetches latest data → retrains HMM →
+     runs Monte Carlo → returns
+  8. C# invalidates cache, pushes updated data via SignalR
+  9. Frontend receives SignalR event, updates UI without page reload
+  10. User clicks instrument row → navigates to /instrument/SPY →
+      calls C# gateway for detail + chart + projections
+
+  DATA FETCH STRATEGY (Incremental)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  1. On first run: DB is empty → fetch full 5 years of history for all
+     instruments → write to DuckDB
+  2. On every subsequent refresh: query DuckDB for the latest date per
+     instrument → fetch only missing days (last date + 1 to today) →
+     append to DuckDB
+  3. If latest date is today: skip fetch entirely for that instrument
+  4. store.py exposes get_latest_date(instrument) — each fetcher in
+     data/ uses this to determine where to pick up from
+
+  SEPARATION OF CONCERNS
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  - backend/data/    — fetching and storage only; no API or model logic
+  - backend/models/  — math only; no knowledge of data sources or display
+  - backend/api/     — thin REST layer over data + models
+  - gateway/         — aggregation, caching, real-time push; no analytics
+  - frontend/        — presentation only; calls gateway API
+
+
+--------------------------------------------------------------------------------
+                         All questions resolved.
+--------------------------------------------------------------------------------
