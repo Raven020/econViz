@@ -35,7 +35,13 @@ def simulate_paths(
         Array of shape (n_paths, horizon, n_assets) with simulated daily
         return paths.
     """
-    pass
+    n_assets = means.shape[0]
+    cholesky_decom = np.linalg.cholesky(covariance)
+    z = np.random.standard_normal((n_paths, horizon, n_assets))
+    fat_tails = students_t.rvs(df, size=(n_paths, horizon, 1))
+    correlated = z @ cholesky_decom.T
+    scaled = correlated * fat_tails
+    return scaled + means
 
 
 def returns_to_prices(
@@ -55,7 +61,8 @@ def returns_to_prices(
         Array of shape (n_paths, horizon, n_assets) with simulated price
         levels at each day.
     """
-    pass
+    price_paths = current_prices * np.cumprod(1 + return_paths, axis=1)
+    return price_paths
 
 
 def compute_percentiles(
@@ -77,7 +84,8 @@ def compute_percentiles(
         Dict mapping each percentile int to an array of shape
         (horizon, n_assets) with that percentile's value at each day.
     """
-    pass
+    results = np.percentile(price_paths, percentiles, axis=0)
+    return {p: results[i] for i, p in enumerate(percentiles)}
 
 
 def compute_tail_risk(
@@ -100,5 +108,16 @@ def compute_tail_risk(
               max drawdown per asset (Value-at-Risk).
             - "cvar_5": Array of shape (n_assets,) with mean drawdown
               below the 5th percentile per asset (Expected Shortfall).
-    """
-    pass
+    """ 
+    n_assets = current_prices.shape[0] 
+    terminal_prices = price_paths[:, -1, :]  # shape (n_paths, n_assets)
+    drawdowns = (terminal_prices - current_prices) / current_prices
+    #Then compute VaR at the 5th percentile:
+    var_5 = np.percentile(drawdowns, 5, axis=0) 
+    #And CVaR (mean of everything below that threshold):
+    cvar_5 = np.zeros(n_assets)
+    for i in range(n_assets):
+        mask = drawdowns[:, i] <= var_5[i]
+        cvar_5[i] = np.mean(drawdowns[mask, i])
+
+    return {"var_5": var_5, "cvar_5": cvar_5}

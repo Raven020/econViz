@@ -24,7 +24,7 @@ def label_regime(state: int) -> str:
     Returns:
         Regime name string (e.g. "Bull", "Crisis").
     """
-    pass
+    return REGIMES[state]
 
 
 def extract_regime_params(model: GaussianHMM, state: int) -> tuple[np.ndarray, np.ndarray]:
@@ -44,7 +44,7 @@ def extract_regime_params(model: GaussianHMM, state: int) -> tuple[np.ndarray, n
             - covariance: Array of shape (n_features, n_features) with
               regime-conditioned covariance matrix.
     """
-    pass
+    return (model.means_[state], model.covars_[state])
 
 
 def blend_regime_params(
@@ -68,4 +68,9 @@ def blend_regime_params(
             - blended_covariance: Array of shape (n_features, n_features) with
               probability-weighted covariance matrix.
     """
-    pass
+    blended_means = 0
+    blended_cov = 0
+    for i in range(len(state_probs)):
+        blended_means += state_probs[i] * model.means_[i]
+        blended_cov += state_probs[i] * model.covars_[i]
+    return (blended_means, blended_cov)
