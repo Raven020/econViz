@@ -2,4 +2,7 @@
 
 namespace EconViz.Gateway.Models;
 
-// TODO: define ProjectionResponse, PercentilePath
+public record PercentilePath(
+    int Percentile,
+    List<double> Values
+);

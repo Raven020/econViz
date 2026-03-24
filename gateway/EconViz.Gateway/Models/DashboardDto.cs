@@ -2,4 +2,13 @@
 
 namespace EconViz.Gateway.Models;
 
-// TODO: define DashboardResponse, InstrumentSummary
+public record InstrumentSummary(
+    string Ticker,
+    double Close,
+    double Change,
+    double ChangePct,
+    double High,
+    double Low,
+    long Volume,
+    List<double> Sparkline
+);

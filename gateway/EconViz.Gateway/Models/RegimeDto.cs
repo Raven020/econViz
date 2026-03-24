@@ -2,4 +2,8 @@
 
 namespace EconViz.Gateway.Models;
 
-// TODO: define RegimeResponse
+public record RegimeResponse(
+    string Label,
+    double Confidence,
+    List<List<double>> TransitionMatrix
+);

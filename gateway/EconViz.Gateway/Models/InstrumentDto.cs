@@ -2,4 +2,14 @@
 
 namespace EconViz.Gateway.Models;
 
-// TODO: define InstrumentDetail, ChartDataPoint
+public record InstrumentDetail(
+    string Ticker,
+    double Close,
+    double Change,
+    double ChangePct,
+    double High,
+    double Low,
+    long Volume,
+    List<ChartDataPoint> History,
+    RegimeResponse? Regime
+);
