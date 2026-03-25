@@ -3,6 +3,7 @@
 // Pushes completion notification via SignalR.
 
 using Microsoft.AspNetCore.Mvc;
+using EconViz.Gateway.Services;
 
 namespace EconViz.Gateway.Controllers;
 
@@ -10,7 +11,6 @@ namespace EconViz.Gateway.Controllers;
 [Route("api/[controller]")]
 public class RefreshController : ControllerBase
 {
-
     private readonly PythonApiClient _python;
     private readonly CacheService _cache;
 
@@ -20,6 +20,12 @@ public class RefreshController : ControllerBase
         _cache = cache;
     }
 
+    /// <summary>
+    /// POST /api/refresh — triggers full data pipeline refresh.
+    /// Calls Python backend to fetch prices, retrain HMM, run Monte Carlo.
+    /// Invalidates the instruments cache so next request gets fresh data.
+    /// </summary>
+    /// <returns>200 OK with status and regime info from Python</returns>
     [HttpPost]
     public async Task<IActionResult> Post()
     {
@@ -27,5 +33,4 @@ public class RefreshController : ControllerBase
         _cache.Invalidate("instruments");
         return Ok(result);
     }
-
 }
