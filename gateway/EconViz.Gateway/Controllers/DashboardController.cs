@@ -10,6 +10,21 @@ namespace EconViz.Gateway.Controllers;
 [Route("api/[controller]")]
 public class DashboardController : ControllerBase
 {
-    // TODO: inject PythonApiClient, CacheService
-    // TODO: implement GET /api/dashboard
+      private readonly PythonApiClient _python;
+      private readonly CacheService _cache;
+
+      public DashboardController(PythonApiClient python, CacheService cache)
+      {
+          _python = python;
+          _cache = cache;
+      }
+
+      [HttpGet]
+      public async Task<IActionResult> Get()
+      {
+        // retrieves dashboard data
+          var data = await _cache.GetOrSetAsync("instruments",
+              () => _python.GetInstrumentsAsync());
+          return Ok(data);
+      }
 }

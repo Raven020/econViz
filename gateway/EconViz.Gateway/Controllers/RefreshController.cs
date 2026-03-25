@@ -10,6 +10,22 @@ namespace EconViz.Gateway.Controllers;
 [Route("api/[controller]")]
 public class RefreshController : ControllerBase
 {
-    // TODO: inject PythonApiClient, CacheService, IHubContext<MarketHub>
-    // TODO: implement POST /api/refresh
+
+    private readonly PythonApiClient _python;
+    private readonly CacheService _cache;
+
+    public RefreshController(PythonApiClient python, CacheService cache)
+    {
+        _python = python;
+        _cache = cache;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Post()
+    {
+        var result = await _python.RefreshAsync();
+        _cache.Invalidate("instruments");
+        return Ok(result);
+    }
+
 }
