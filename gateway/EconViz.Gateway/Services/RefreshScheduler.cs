@@ -35,13 +35,21 @@ public class RefreshScheduler : BackgroundService
     /// <returns>Task that runs for the lifetime of the application</returns>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // TODO: loop while !stoppingToken.IsCancellationRequested
-        // TODO: await Task.Delay(_interval, stoppingToken) to wait between runs
-        // TODO: create a scope via _scopeFactory.CreateScope()
-        // TODO: resolve PythonApiClient from the scope
-        // TODO: call RefreshAsync()
-        // TODO: push "MarketDataUpdated" via _hub.Clients.All.SendAsync()
-        // TODO: wrap in try/catch to prevent crashes from killing the background service
-        throw new NotImplementedException();
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            await Task.Delay(_interval, stoppingToken);
+
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var client = scope.ServiceProvider.GetRequiredService<PythonApiClient>();
+                await client.RefreshAsync();
+                await _hub.Clients.All.SendAsync("MarketDataUpdated", cancellationToken: stoppingToken);
+            }
+            catch (Exception)
+            {
+                // Swallow so one failed refresh doesn't kill the background loop
+            }
+        }
     }
 }

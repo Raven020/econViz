@@ -16,7 +16,7 @@ public class MarketHub : Hub
     public async Task SendMarketDataUpdated(object data)
     {
         // TODO: call Clients.All.SendAsync("MarketDataUpdated", data)
-        throw new NotImplementedException();
+        await Clients.All.SendAsync("MarketDataUpdated", data);
     }
 
     /// <summary>
@@ -28,7 +28,7 @@ public class MarketHub : Hub
     public async Task SendRegimeChanged(object regime)
     {
         // TODO: call Clients.All.SendAsync("RegimeChanged", regime)
-        throw new NotImplementedException();
+        await Clients.All.SendAsync("SendRegimeChanged", regime);
     }
 
     /// <summary>
@@ -39,7 +39,6 @@ public class MarketHub : Hub
     /// <returns>Task</returns>
     public async Task SendRefreshProgress(string message)
     {
-        // TODO: call Clients.All.SendAsync("RefreshProgress", message)
-        throw new NotImplementedException();
+        await Clients.All.SendAsync("RefreshProgress", message);
     }
 }
