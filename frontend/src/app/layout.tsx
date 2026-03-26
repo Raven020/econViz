@@ -1,3 +1,23 @@
 // Root layout — MUI ThemeProvider, global styles, metadata.
 
-// TODO: implement layout with MUI ThemeProvider
+"use client";
+
+import { ThemeProvider, CssBaseline } from "@mui/material";
+import theme from "../theme/theme";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
