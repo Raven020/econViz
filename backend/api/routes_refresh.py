@@ -42,27 +42,36 @@ def refresh():
 
     # Fetch Yahoo data
     for name, ticker in YAHOO_TICKERS.items():
-        latest = get_latest_date(conn, name)
-        start = (latest + timedelta(days=1)) if latest else lookback_start
-        if start <= today:
-            df = yahoo.fetch(ticker, start, today)
-            if not df.empty:
-                write_price_data(conn, name, df)
+        try:
+            latest = get_latest_date(conn, name)
+            start = (latest + timedelta(days=1)) if latest else lookback_start
+            if start <= today:
+                df = yahoo.fetch(ticker, start, today)
+                if not df.empty:
+                    write_price_data(conn, name, df)
+        except Exception as e:
+            print(f"[WARN] Yahoo fetch failed for {name}: {e}")
 
     # Fetch crypto data
     for name, coin_id in CRYPTO_IDS.items():
-        latest = get_latest_date(conn, name)
-        start = (latest + timedelta(days=1)) if latest else lookback_start
-        if start <= today:
-            df = coingecko.fetch(coin_id, start, today)
-            if not df.empty:
-                write_price_data(conn, name, df)
+        try:
+            latest = get_latest_date(conn, name)
+            start = (latest + timedelta(days=1)) if latest else lookback_start
+            if start <= today:
+                df = coingecko.fetch(coin_id, start, today)
+                if not df.empty:
+                    write_price_data(conn, name, df)
+        except Exception as e:
+            print(f"[WARN] CoinGecko fetch failed for {name}: {e}")
 
     # Fetch FRED macro data
     for name, series_id in FRED_SERIES.items():
-        df = fred.fetch(series_id, lookback_start, today)
-        if not df.empty:
-            write_macro_data(conn, name, df)
+        try:
+            df = fred.fetch(series_id, lookback_start, today)
+            if not df.empty:
+                write_macro_data(conn, name, df)
+        except Exception as e:
+            print(f"[WARN] FRED fetch failed for {name}: {e}")
 
     # Train HMM and detect regime
     returns_df = read_all_returns(conn, lookback_start, today)

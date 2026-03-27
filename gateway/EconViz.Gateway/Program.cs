@@ -1,6 +1,10 @@
 // EconViz API Gateway — ASP.NET Core entry point.
 // Configures DI, middleware, SignalR hub, and routes.
 
+using System.Text.Json;
+using EconViz.Gateway.Hubs;
+using EconViz.Gateway.Services;
+
 // --- Service Registration (DI) ---
 // Each line tells ASP.NET how to create and inject dependencies.
 // Order doesn't matter here — DI resolves at request time, not registration time.
@@ -27,14 +31,19 @@ builder.Services.AddHttpClient<PythonApiClient>(client =>
 });
 // TODO: AddHostedService<RefreshScheduler>() — starts the background refresh timer
 builder.Services.AddHostedService<RefreshScheduler>();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:3002")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 // --- App Build & Middleware ---
-// TODO: call builder.Build() to create the app
 var app = builder.Build();
-// TODO: MapControllers() — routes incoming HTTP requests to controller methods
-
-// TODO: MapHub<MarketHub>("/hubs/market") — maps the SignalR hub to its URL
-
-// TODO: app.Run() — starts the server
-  app.MapControllers();
-  app.MapHub<MarketHub>("/hubs/market");
-  app.Run();
+app.UseCors();
+app.MapControllers();
+app.MapHub<MarketHub>("/hubs/market");
+app.Run();

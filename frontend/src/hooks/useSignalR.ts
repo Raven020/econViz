@@ -6,7 +6,7 @@
 import { useEffect, useRef } from "react";
 import { HubConnectionBuilder, HubConnection } from "@microsoft/signalr";
 
-const HUB_URL = "http://localhost:5000/hubs/market";
+const HUB_URL = (process.env.NEXT_PUBLIC_API_URL || "") + "/hubs/market";
 
 export function useSignalR(
     onMarketDataUpdated?: () => void,

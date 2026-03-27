@@ -2,7 +2,7 @@
 // Configures base URL, error handling, and request defaults.
 
 // Base URL — point at the C# gateway on port 5000:
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 //Generic fetch helper — handles the URL prefix, JSON parsing, and error checking in one place so you don't repeat it in
 //every hook:

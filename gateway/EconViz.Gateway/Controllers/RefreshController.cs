@@ -31,6 +31,19 @@ public class RefreshController : ControllerBase
     {
         var result = await _python.RefreshAsync();
         _cache.Invalidate("instruments");
+
+        // Pre-warm cache: fetch instruments, then pre-fetch detail + projections for each
+        var instruments = await _cache.GetOrSetAsync("instruments",
+            () => _python.GetInstrumentsAsync());
+
+        foreach (var inst in instruments)
+        {
+            await _cache.GetOrSetAsync($"instrument_{inst.Ticker}",
+                () => _python.GetInstrumentAsync(inst.Ticker));
+            await _cache.GetOrSetAsync($"projections_{inst.Ticker}",
+                () => _python.GetProjectionsAsync(inst.Ticker), isProjection: true);
+        }
+
         return Ok(result);
     }
 }

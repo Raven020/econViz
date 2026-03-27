@@ -528,6 +528,50 @@ opens a detail page showing:
   - frontend/        — presentation only; calls gateway API
 
 
+14. DEPLOYMENT
+--------------------------------------------------------------------------------
+
+  INFRASTRUCTURE
+    - AWS EC2 t3.micro (free tier), Ubuntu 22.04, us-east-1
+    - 20 GB EBS volume, 2 GB swap file
+    - Domain: econviz.tech (Porkbun)
+    - Elastic IP: pending allocation
+
+  SERVICES (systemd)
+    - econviz-backend   — Python FastAPI on port 8000 (internal only)
+    - econviz-gateway   — C# ASP.NET Core on port 5000 (internal only)
+    - econviz-frontend  — Next.js on port 3000 (internal only)
+    - nginx             — reverse proxy on port 80/443 (public)
+
+  NGINX ROUTING
+    - /           → Next.js (port 3000)
+    - /api/*      → C# gateway (port 5000)
+    - /hubs/*     → SignalR WebSocket (port 5000)
+    - /api/refresh → rate-limited (1 req/min per IP, burst 2)
+
+  CACHE PRE-WARMING
+    - After each refresh, the gateway pre-fetches instrument detail and
+      Monte Carlo projections for all instruments, storing them in the
+      in-memory cache. This ensures drill-down pages load instantly from
+      cache rather than computing on demand.
+
+15. SECURITY
+--------------------------------------------------------------------------------
+
+  IMPLEMENTED
+    - SSH key-pair authentication (no password auth)
+    - Security group: only ports 22 (SSH), 80 (HTTP), 443 (HTTPS) open
+    - Internal ports 5000/8000 not publicly accessible
+    - Rate limiting on /api/refresh (1 request/min per IP via Nginx)
+    - API keys stored in .env, excluded from git via .gitignore
+    - No user input or authentication required (read-only dashboard)
+
+  TODO
+    - HTTPS via Let's Encrypt (certbot) — pending DNS propagation
+    - Restrict SSH to specific IP range (optional)
+    - Elastic IP to prevent IP changes on reboot
+
+
 --------------------------------------------------------------------------------
                          All questions resolved.
 --------------------------------------------------------------------------------
