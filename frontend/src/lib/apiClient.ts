@@ -56,5 +56,9 @@ export const triggerRefresh = () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
     return fetch(`${BASE_URL}/api/refresh`, { method: "POST", signal: controller.signal })
+        .then(res => {
+            if (!res.ok) throw new Error(`Refresh failed: ${res.status}`);
+            return res;
+        })
         .finally(() => clearTimeout(timeoutId));
 };

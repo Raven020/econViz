@@ -10,6 +10,10 @@ namespace EconViz.Gateway.Services;
 public class PythonApiClient
 {
     private readonly HttpClient _http;
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+    };
 
     /// <summary>
     /// Constructor — receives an HttpClient with BaseAddress pre-configured
@@ -30,7 +34,7 @@ public class PythonApiClient
     public async Task<List<InstrumentSummary>> GetInstrumentsAsync()
     {
         // Retrieves summary of all instruments
-        return await _http.GetFromJsonAsync<List<InstrumentSummary>>("/internal/instruments");
+        return await _http.GetFromJsonAsync<List<InstrumentSummary>>("/internal/instruments", _jsonOptions);
     }
 
     /// <summary>
@@ -42,7 +46,7 @@ public class PythonApiClient
     public async Task<InstrumentDetail?> GetInstrumentAsync(string ticker)
     {
         // Retrieves details for 1 ticker
-        return await _http.GetFromJsonAsync<InstrumentDetail>($"/internal/instrument/{ticker}");
+        return await _http.GetFromJsonAsync<InstrumentDetail>($"/internal/instrument/{ticker}", _jsonOptions);
     }
 
     /// <summary>
@@ -55,7 +59,7 @@ public class PythonApiClient
         // Refreshes summary
         var response = await _http.PostAsync("/internal/refresh", null);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<JsonElement>();
+        return await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
     }
 
     /// <summary>
@@ -68,7 +72,7 @@ public class PythonApiClient
     public async Task<List<PercentilePath>> GetProjectionsAsync(string ticker)
     {
         // Retrieves and parses 30 day projection from Monte Carlo
-        var response = await _http.GetFromJsonAsync<List<JsonElement>>($"/internal/instrument/{ticker}/projections");
+        var response = await _http.GetFromJsonAsync<List<JsonElement>>($"/internal/instrument/{ticker}/projections", _jsonOptions);
 
         var paths = new List<PercentilePath>();
         foreach (var row in response)

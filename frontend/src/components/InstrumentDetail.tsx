@@ -10,6 +10,14 @@ interface InstrumentDetailProps {
   data: InstrumentDetailType;
 }
 
+// Tickers that are indexes/levels, not dollar-denominated prices
+const INDEX_TICKERS = new Set(["VIX", "DXY"]);
+
+function formatPrice(value: number, ticker: string): string {
+  if (INDEX_TICKERS.has(ticker)) return value.toFixed(2);
+  return `$${value.toFixed(2)}`;
+}
+
 function StatItem({ label, value }: { label: string; value: string }) {
   return (
     <Box>
@@ -31,17 +39,17 @@ export default function InstrumentDetail({ data }: InstrumentDetailProps) {
         {data.ticker}
       </Typography>
       <Typography variant="h3" gutterBottom>
-        ${data.close.toFixed(2)}
+        {formatPrice(data.close, data.ticker)}
       </Typography>
       <Typography variant="h6" sx={{ color: changeColor, mb: 3 }}>
         {sign}{data.change.toFixed(2)} ({sign}{data.change_pct.toFixed(2)}%)
       </Typography>
       <Grid container spacing={3}>
         <Grid item xs={6} sm={3}>
-          <StatItem label="High" value={`$${data.high.toFixed(2)}`} />
+          <StatItem label="High" value={formatPrice(data.high, data.ticker)} />
         </Grid>
         <Grid item xs={6} sm={3}>
-          <StatItem label="Low" value={`$${data.low.toFixed(2)}`} />
+          <StatItem label="Low" value={formatPrice(data.low, data.ticker)} />
         </Grid>
         <Grid item xs={6} sm={3}>
           <StatItem label="Volume" value={data.volume.toLocaleString()} />

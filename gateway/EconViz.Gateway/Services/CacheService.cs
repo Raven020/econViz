@@ -22,8 +22,8 @@ public class CacheService
     {
         // stores into the cache and reads the TTLs
         _cache = cache;
-        _priceTtl = config.GetValue<int>("Cache:PriceTtlSeconds");
-        _projectionTtl = config.GetValue<int>("Cache:ProjectionTtlSeconds");
+        _priceTtl = config.GetValue<int>("Cache:PriceTtlSeconds", 60);
+        _projectionTtl = config.GetValue<int>("Cache:ProjectionTtlSeconds", 300);
     }
 
     /// <summary>

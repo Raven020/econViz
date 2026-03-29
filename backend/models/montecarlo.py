@@ -36,6 +36,8 @@ def simulate_paths(
         return paths.
     """
     n_assets = means.shape[0]
+    # Add small ridge for numerical stability (prevents LinAlgError on semi-definite matrices)
+    covariance = covariance + 1e-8 * np.eye(n_assets)
     cholesky_decom = np.linalg.cholesky(covariance)
     z = np.random.standard_normal((n_paths, horizon, n_assets))
     fat_tails = students_t.rvs(df, size=(n_paths, horizon, 1))

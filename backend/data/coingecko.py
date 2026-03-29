@@ -28,7 +28,7 @@ def fetch(coin_id, start_date, end_date):
         pd.DataFrame: columns — date, open, high, low, close, volume
     """
     start_ts = int(pd.Timestamp(start_date).timestamp())
-    end_ts = int(pd.Timestamp(end_date).timestamp())
+    end_ts = int((pd.Timestamp(end_date) + pd.Timedelta(days=1)).timestamp())
 
     headers = {}
     if COINGECKO_API_KEY:

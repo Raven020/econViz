@@ -53,7 +53,7 @@ def _sample_sparklines():
 class TestDashboardRoute:
     @patch("backend.api.routes_dashboard.read_sparklines")
     @patch("backend.api.routes_dashboard.read_latest_prices")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_get_instruments(self, mock_init, mock_latest, mock_sparklines):
         mock_init.return_value = _mock_conn()
         mock_latest.return_value = _sample_latest_prices()
@@ -70,7 +70,7 @@ class TestDashboardRoute:
 
     @patch("backend.api.routes_dashboard.read_sparklines")
     @patch("backend.api.routes_dashboard.read_latest_prices")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_empty_instruments(self, mock_init, mock_latest, mock_sparklines):
         mock_init.return_value = _mock_conn()
         mock_latest.return_value = pd.DataFrame(columns=["instrument", "close", "change", "change_pct", "high", "low", "volume"])
@@ -83,7 +83,7 @@ class TestDashboardRoute:
 
 # --- Connection Cleanup ---
 class TestConnectionCleanup:
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_conn_closed_on_read_latest_prices_failure(self, mock_init):
         mock_conn = MagicMock()
         mock_init.return_value = mock_conn
@@ -94,7 +94,7 @@ class TestConnectionCleanup:
                 pass
             mock_conn.close.assert_called_once()
 
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_drilldown_conn_closed_on_failure(self, mock_init):
         mock_conn = MagicMock()
         mock_init.return_value = mock_conn
@@ -105,7 +105,7 @@ class TestConnectionCleanup:
                 pass
             mock_conn.close.assert_called_once()
 
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_montecarlo_conn_closed_on_failure(self, mock_init):
         mock_conn = MagicMock()
         mock_init.return_value = mock_conn
@@ -119,32 +119,32 @@ class TestConnectionCleanup:
 
 # --- Ticker Validation ---
 class TestTickerValidation:
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_invalid_ticker_returns_404(self, mock_init):
         mock_init.return_value = _mock_conn()
         response = client.get("/internal/instrument/FAKE_TICKER")
         assert response.status_code == 404
         assert "Unknown instrument" in response.json()["detail"]
 
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_path_traversal_rejected(self, mock_init):
         mock_init.return_value = _mock_conn()
         response = client.get("/internal/instrument/..%2F..%2Fetc")
         assert response.status_code == 404
 
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_script_injection_rejected(self, mock_init):
         mock_init.return_value = _mock_conn()
         response = client.get("/internal/instrument/%3Cscript%3E")
         assert response.status_code == 404
 
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_long_ticker_rejected(self, mock_init):
         mock_init.return_value = _mock_conn()
         response = client.get(f"/internal/instrument/{'A' * 100}")
         assert response.status_code == 404
 
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_projections_invalid_ticker_returns_404(self, mock_init):
         mock_init.return_value = _mock_conn()
         response = client.get("/internal/instrument/FAKE/projections")
@@ -157,7 +157,7 @@ class TestDrilldownRoute:
     @patch("backend.api.routes_drilldown.read_regime")
     @patch("backend.api.routes_drilldown.read_price_history")
     @patch("backend.api.routes_drilldown.read_latest_prices")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_get_instrument(self, mock_init, mock_latest, mock_history, mock_regime):
         mock_init.return_value = _mock_conn()
         mock_latest.return_value = _sample_latest_prices()
@@ -173,7 +173,7 @@ class TestDrilldownRoute:
         assert data["regime"]["label"] == "Bull"
 
     @patch("backend.api.routes_drilldown.read_latest_prices")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_instrument_not_found_in_db(self, mock_init, mock_latest):
         mock_init.return_value = _mock_conn()
         mock_latest.return_value = _sample_latest_prices()
@@ -184,7 +184,7 @@ class TestDrilldownRoute:
     @patch("backend.api.routes_drilldown.read_regime")
     @patch("backend.api.routes_drilldown.read_price_history")
     @patch("backend.api.routes_drilldown.read_latest_prices")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_no_regime(self, mock_init, mock_latest, mock_history, mock_regime):
         mock_init.return_value = _mock_conn()
         mock_latest.return_value = _sample_latest_prices()
@@ -198,7 +198,7 @@ class TestDrilldownRoute:
     @patch("backend.api.routes_drilldown.read_regime")
     @patch("backend.api.routes_drilldown.read_price_history")
     @patch("backend.api.routes_drilldown.read_latest_prices")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_bounded_date_range(self, mock_init, mock_latest, mock_history, mock_regime):
         """Verify drilldown uses bounded date range, not wildcard."""
         mock_init.return_value = _mock_conn()
@@ -217,7 +217,7 @@ class TestDrilldownRoute:
 # --- Projections Route ---
 class TestProjectionsRoute:
     @patch("backend.api.routes_montecarlo.read_montecarlo")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_get_projections(self, mock_init, mock_mc):
         mock_init.return_value = _mock_conn()
         mock_mc.return_value = pd.DataFrame({
@@ -232,7 +232,7 @@ class TestProjectionsRoute:
         assert data[0]["percentile"] == 10
 
     @patch("backend.api.routes_montecarlo.read_montecarlo")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_projections_empty_returns_404(self, mock_init, mock_mc):
         mock_init.return_value = _mock_conn()
         mock_mc.return_value = pd.DataFrame()  # Empty DataFrame, not None
@@ -255,18 +255,20 @@ class TestRefreshRoute:
     @patch("backend.api.routes_refresh.write_macro_data")
     @patch("backend.api.routes_refresh.fred")
     @patch("backend.api.routes_refresh.write_price_data")
+    @patch("backend.api.routes_refresh.get_latest_macro_date")
     @patch("backend.api.routes_refresh.get_latest_date")
     @patch("backend.api.routes_refresh.coingecko")
     @patch("backend.api.routes_refresh.yahoo")
-    @patch("backend.api.deps.init_db")
+    @patch("backend.api.deps.connect")
     def test_refresh_success(
         self, mock_init, mock_yahoo, mock_coingecko, mock_latest_date,
-        mock_write_price, mock_fred, mock_write_macro, mock_returns,
+        mock_latest_macro_date, mock_write_price, mock_fred, mock_write_macro, mock_returns,
         mock_features, mock_train, mock_decode, mock_trans,
         mock_write_regime, mock_blend, mock_latest_prices, mock_write_mc,
     ):
         mock_init.return_value = _mock_conn()
         mock_latest_date.return_value = None
+        mock_latest_macro_date.return_value = None
         mock_yahoo.fetch.return_value = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
         mock_coingecko.fetch.return_value = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
         mock_fred.fetch.return_value = pd.DataFrame(columns=["date", "value"])
@@ -295,16 +297,135 @@ class TestRefreshRoute:
         assert data["regime"]["label"] == "Bull"
 
 
+    @patch("backend.api.routes_refresh.write_montecarlo")
+    @patch("backend.api.routes_refresh.read_latest_prices")
+    @patch("backend.api.routes_refresh.blend_regime_params")
+    @patch("backend.api.routes_refresh.write_regime")
+    @patch("backend.api.routes_refresh.get_transition_matrix")
+    @patch("backend.api.routes_refresh.decode_regime")
+    @patch("backend.api.routes_refresh.train_hmm")
+    @patch("backend.api.routes_refresh.build_feature_matrix")
+    @patch("backend.api.routes_refresh.read_macro_matrix")
+    @patch("backend.api.routes_refresh.read_all_returns")
+    @patch("backend.api.routes_refresh.write_macro_data")
+    @patch("backend.api.routes_refresh.fred")
+    @patch("backend.api.routes_refresh.write_price_data")
+    @patch("backend.api.routes_refresh.get_latest_macro_date")
+    @patch("backend.api.routes_refresh.get_latest_date")
+    @patch("backend.api.routes_refresh.coingecko")
+    @patch("backend.api.routes_refresh.yahoo")
+    @patch("backend.api.deps.connect")
+    def test_refresh_uses_real_macro_data(
+        self, mock_init, mock_yahoo, mock_coingecko, mock_latest_date,
+        mock_latest_macro_date, mock_write_price, mock_fred, mock_write_macro,
+        mock_returns, mock_macro_matrix, mock_features, mock_train, mock_decode,
+        mock_trans, mock_write_regime, mock_blend, mock_latest_prices, mock_write_mc,
+    ):
+        """Verify HMM receives real macro data, not zeros."""
+        mock_init.return_value = _mock_conn()
+        mock_latest_date.return_value = None
+        mock_latest_macro_date.return_value = None
+        mock_yahoo.fetch.return_value = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
+        mock_coingecko.fetch.return_value = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
+        mock_fred.fetch.return_value = pd.DataFrame(columns=["date", "value"])
+
+        dates_idx = [date(2024, 1, 1), date(2024, 1, 2), date(2024, 1, 3)]
+        returns_df = pd.DataFrame(
+            {"SPY": [0.01, 0.02, -0.01], "BTC": [0.02, -0.01, 0.03]},
+            index=dates_idx,
+        )
+        mock_returns.return_value = returns_df
+
+        # Provide real macro data
+        macro_df = pd.DataFrame(
+            {"FED_FUNDS": [0.001, 0.002, -0.001], "INFLATION_5Y": [0.01, -0.005, 0.003]},
+            index=dates_idx,
+        )
+        mock_macro_matrix.return_value = macro_df
+
+        mock_features.return_value = np.random.randn(3, 4)  # 2 assets + 2 macro
+        model = MagicMock()
+        mock_train.return_value = model
+        mock_decode.return_value = (0, np.array([0.8, 0.1, 0.05, 0.03, 0.02]))
+        mock_trans.return_value = np.eye(5)
+        mock_blend.return_value = (np.zeros(4), np.eye(4))
+        mock_latest_prices.return_value = pd.DataFrame({
+            "instrument": ["SPY"], "close": [450.0],
+        })
+
+        response = client.post("/internal/refresh")
+        assert response.status_code == 200
+
+        # Verify build_feature_matrix received the macro data, not zeros
+        call_args = mock_features.call_args[0]
+        returns_arg, macro_arg = call_args
+        assert macro_arg.shape == (3, 2)  # 3 dates x 2 macro indicators
+        assert not np.all(macro_arg == 0), "Macro data should not be all zeros"
+
+    @patch("backend.api.routes_refresh.write_regime")
+    @patch("backend.api.routes_refresh.get_transition_matrix")
+    @patch("backend.api.routes_refresh.decode_regime")
+    @patch("backend.api.routes_refresh.train_hmm")
+    @patch("backend.api.routes_refresh.build_feature_matrix")
+    @patch("backend.api.routes_refresh.read_macro_matrix")
+    @patch("backend.api.routes_refresh.read_all_returns")
+    @patch("backend.api.routes_refresh.write_macro_data")
+    @patch("backend.api.routes_refresh.fred")
+    @patch("backend.api.routes_refresh.write_price_data")
+    @patch("backend.api.routes_refresh.get_latest_macro_date")
+    @patch("backend.api.routes_refresh.get_latest_date")
+    @patch("backend.api.routes_refresh.coingecko")
+    @patch("backend.api.routes_refresh.yahoo")
+    @patch("backend.api.deps.connect")
+    def test_refresh_falls_back_to_zeros_without_macro(
+        self, mock_init, mock_yahoo, mock_coingecko, mock_latest_date,
+        mock_latest_macro_date, mock_write_price, mock_fred, mock_write_macro,
+        mock_returns, mock_macro_matrix, mock_features, mock_train, mock_decode,
+        mock_trans, mock_write_regime,
+    ):
+        """When no macro data exists, HMM should still work with zero fallback."""
+        mock_init.return_value = _mock_conn()
+        mock_latest_date.return_value = None
+        mock_latest_macro_date.return_value = None
+        mock_yahoo.fetch.return_value = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
+        mock_coingecko.fetch.return_value = pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
+        mock_fred.fetch.return_value = pd.DataFrame(columns=["date", "value"])
+
+        returns_df = pd.DataFrame(
+            {"SPY": [0.01, 0.02, -0.01]},
+            index=[date(2024, 1, 1), date(2024, 1, 2), date(2024, 1, 3)],
+        )
+        mock_returns.return_value = returns_df
+        mock_macro_matrix.return_value = pd.DataFrame()  # No macro data
+
+        mock_features.return_value = np.random.randn(3, 2)
+        model = MagicMock()
+        mock_train.return_value = model
+        mock_decode.return_value = (0, np.array([0.8, 0.1, 0.05, 0.03, 0.02]))
+        mock_trans.return_value = np.eye(5)
+
+        response = client.post("/internal/refresh")
+        assert response.status_code == 200
+
+        # Verify fallback: macro arg should be zeros
+        call_args = mock_features.call_args[0]
+        _, macro_arg = call_args
+        assert macro_arg.shape == (3, 1)  # fallback is single zero column
+        assert np.all(macro_arg == 0)
+
+
 # --- Error Handling ---
 class TestRefreshErrorHandling:
     @patch("backend.api.routes_refresh.read_all_returns")
+    @patch("backend.api.routes_refresh.get_latest_macro_date")
     @patch("backend.api.routes_refresh.get_latest_date")
     @patch("backend.api.routes_refresh.yahoo")
-    @patch("backend.api.deps.init_db")
-    def test_yahoo_network_error_continues(self, mock_init, mock_yahoo, mock_latest_date, mock_returns):
+    @patch("backend.api.deps.connect")
+    def test_yahoo_network_error_continues(self, mock_init, mock_yahoo, mock_latest_date, mock_latest_macro, mock_returns):
         """Network errors in data fetching should not crash the refresh."""
         mock_init.return_value = _mock_conn()
         mock_latest_date.return_value = None
+        mock_latest_macro.return_value = None
         mock_yahoo.fetch.side_effect = requests.RequestException("timeout")
         mock_returns.return_value = pd.DataFrame()
 
@@ -312,14 +433,16 @@ class TestRefreshErrorHandling:
         assert response.status_code == 200
 
     @patch("backend.api.routes_refresh.read_all_returns")
+    @patch("backend.api.routes_refresh.get_latest_macro_date")
     @patch("backend.api.routes_refresh.get_latest_date")
     @patch("backend.api.routes_refresh.yahoo")
-    @patch("backend.api.deps.init_db")
-    def test_fetch_failure_logged(self, mock_init, mock_yahoo, mock_latest_date, mock_returns, caplog):
+    @patch("backend.api.deps.connect")
+    def test_fetch_failure_logged(self, mock_init, mock_yahoo, mock_latest_date, mock_latest_macro, mock_returns, caplog):
         """Fetch failures should be logged as warnings."""
         import logging
         mock_init.return_value = _mock_conn()
         mock_latest_date.return_value = None
+        mock_latest_macro.return_value = None
         mock_yahoo.fetch.side_effect = requests.RequestException("network down")
         mock_returns.return_value = pd.DataFrame()
 
@@ -330,7 +453,7 @@ class TestRefreshErrorHandling:
 
 # --- Health Check ---
 class TestHealthCheck:
-    @patch("backend.main.init_db")
+    @patch("backend.main.connect")
     def test_health_returns_200(self, mock_init):
         mock_conn = MagicMock()
         mock_conn.execute.return_value.fetchone.return_value = (1,)
@@ -339,7 +462,7 @@ class TestHealthCheck:
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
 
-    @patch("backend.main.init_db")
+    @patch("backend.main.connect")
     def test_health_returns_503_on_db_failure(self, mock_init):
         mock_init.side_effect = RuntimeError("DB connection failed")
         response = client.get("/health")

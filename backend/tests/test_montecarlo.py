@@ -34,6 +34,15 @@ class TestSimulatePaths:
         result = simulate_paths(means, cov, n_paths=5000, horizon=1)
         assert result.mean() > 0
 
+    def test_semi_definite_matrix_does_not_crash(self):
+        """Cholesky should not crash on a near-singular covariance matrix."""
+        means = np.array([0.001, 0.001])
+        # Singular matrix (rows are identical) - would fail without ridge
+        cov = np.array([[0.0004, 0.0004], [0.0004, 0.0004]])
+        result = simulate_paths(means, cov, n_paths=10, horizon=5)
+        assert result.shape == (10, 5, 2)
+        assert np.all(np.isfinite(result))
+
 
 class TestReturnsToPrices:
     def test_output_shape(self):

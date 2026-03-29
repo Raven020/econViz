@@ -8,12 +8,15 @@ from fastapi import FastAPI, HTTPException
 
 from backend.api import routes_dashboard, routes_drilldown, routes_montecarlo, routes_refresh
 from backend.config import DB_PATH
-from backend.data.store import init_db
+from backend.data.store import ensure_schema, connect
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+
+# One-time schema initialization at startup
+ensure_schema(DB_PATH)
 
 app = FastAPI(title="EconViz Analytics Backend")
 
@@ -26,7 +29,7 @@ app.include_router(routes_refresh.router)
 @app.get("/health")
 def health():
     try:
-        conn = init_db(DB_PATH)
+        conn = connect(DB_PATH)
         conn.execute("SELECT 1").fetchone()
         conn.close()
         return {"status": "ok"}

@@ -13,9 +13,14 @@ class TestLabelRegime:
         assert label_regime(3) == "Stagflation"
         assert label_regime(4) == "Crisis"
 
-    def test_invalid_state(self):
-        with pytest.raises(KeyError):
-            label_regime(5)
+    def test_unknown_state_returns_fallback(self):
+        result = label_regime(5)
+        assert "Unknown" in result
+        assert "5" in result
+
+    def test_negative_state_returns_fallback(self):
+        result = label_regime(-1)
+        assert "Unknown" in result
 
 
 class TestExtractRegimeParams:

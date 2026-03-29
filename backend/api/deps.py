@@ -3,14 +3,14 @@
 import threading
 
 from backend.config import DB_PATH
-from backend.data.store import init_db
+from backend.data.store import connect
 
 _write_lock = threading.Lock()
 
 
 def get_conn():
     """Yield a DuckDB connection, guaranteed to close on exit."""
-    conn = init_db(DB_PATH)
+    conn = connect(DB_PATH)
     try:
         yield conn
     finally:
@@ -19,7 +19,7 @@ def get_conn():
 
 def get_write_conn():
     """Yield a DuckDB connection with a global write lock for thread safety."""
-    conn = init_db(DB_PATH)
+    conn = connect(DB_PATH)
     _write_lock.acquire()
     try:
         yield conn

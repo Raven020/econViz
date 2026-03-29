@@ -16,10 +16,8 @@ interface DashboardGridProps {
 const sectors: { name: string; tickers: string[] }[] = [
   { name: "Equities", tickers: ["SPY", "IWM", "QQQ", "DIA"] },
   { name: "Volatility & FX", tickers: ["VIX", "DXY"] },
-  { name: "Macro Indicators", tickers: ["INFLATION_5Y", "JOBLESS_CLAIMS"] },
   { name: "Commodities", tickers: ["CRUDE_OIL", "GOLD", "SILVER", "NATURAL_GAS", "COPPER", "WHEAT"] },
   { name: "Crypto", tickers: ["BTC", "ETH", "SOL"] },
-  { name: "Fixed Income & Rates", tickers: ["US_10Y", "US_2Y", "YIELD_SPREAD_2S10S"] },
 ];
 
 const InstrumentRow = React.memo(function InstrumentRow(

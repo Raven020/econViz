@@ -24,7 +24,7 @@ def label_regime(state: int) -> str:
     Returns:
         Regime name string (e.g. "Bull", "Crisis").
     """
-    return REGIMES[state]
+    return REGIMES.get(state, f"Unknown({state})")
 
 
 def extract_regime_params(model: GaussianHMM, state: int) -> tuple[np.ndarray, np.ndarray]:

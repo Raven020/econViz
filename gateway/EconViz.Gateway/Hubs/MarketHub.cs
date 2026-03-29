@@ -27,8 +27,7 @@ public class MarketHub : Hub
     /// <returns>Task</returns>
     public async Task SendRegimeChanged(object regime)
     {
-        // TODO: call Clients.All.SendAsync("RegimeChanged", regime)
-        await Clients.All.SendAsync("SendRegimeChanged", regime);
+        await Clients.All.SendAsync("RegimeChanged", regime);
     }
 
     /// <summary>

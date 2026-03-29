@@ -22,22 +22,27 @@ public class RefreshController : ControllerBase
 
     /// <summary>
     /// POST /api/refresh — triggers full data pipeline refresh.
-    /// Calls Python backend to fetch prices, retrain HMM, run Monte Carlo.
-    /// Invalidates the instruments cache so next request gets fresh data.
+    /// Invalidates all caches, then pre-warms with fresh data.
     /// </summary>
-    /// <returns>200 OK with status and regime info from Python</returns>
     [HttpPost]
     public async Task<IActionResult> Post()
     {
         var result = await _python.RefreshAsync();
+
+        // Invalidate dashboard cache
         _cache.Invalidate("instruments");
 
-        // Pre-warm cache: fetch instruments, then pre-fetch detail + projections for each
+        // Pre-warm dashboard and get instrument list
         var instruments = await _cache.GetOrSetAsync("instruments",
             () => _python.GetInstrumentsAsync());
 
+        // Invalidate and pre-warm per-instrument caches
         foreach (var inst in instruments)
         {
+            _cache.Invalidate($"instrument_{inst.Ticker}");
+            _cache.Invalidate($"chart_{inst.Ticker}");
+            _cache.Invalidate($"projections_{inst.Ticker}");
+
             await _cache.GetOrSetAsync($"instrument_{inst.Ticker}",
                 () => _python.GetInstrumentAsync(inst.Ticker));
             await _cache.GetOrSetAsync($"projections_{inst.Ticker}",

@@ -23,9 +23,11 @@ from backend.config import (
 from backend.data import coingecko, fred, yahoo
 from backend.data.store import (
     get_latest_date,
+    get_latest_macro_date,
     write_price_data,
     write_macro_data,
     read_all_returns,
+    read_macro_matrix,
     read_latest_prices,
     write_regime,
     write_montecarlo,
@@ -54,12 +56,15 @@ def _fetch_and_store_prices(conn, tickers, fetch_fn, lookback_start, today):
 
 
 def _fetch_and_store_macro(conn, series_map, lookback_start, today):
-    """Common pattern for FRED macro data fetching."""
+    """Common pattern for FRED macro data fetching with incremental dates."""
     for name, series_id in series_map.items():
         try:
-            df = fred.fetch(series_id, lookback_start, today)
-            if not df.empty:
-                write_macro_data(conn, name, df)
+            latest = get_latest_macro_date(conn, name)
+            start = (latest + timedelta(days=1)) if latest else lookback_start
+            if start <= today:
+                df = fred.fetch(series_id, start, today)
+                if not df.empty:
+                    write_macro_data(conn, name, df)
         except (requests.RequestException, ValueError, KeyError) as e:
             logger.warning("FRED fetch failed for %s: %s", name, e)
 
@@ -78,9 +83,19 @@ def refresh(conn: duckdb.DuckDBPyConnection = Depends(get_write_conn)):
     if returns_df.empty:
         return {"status": "refreshed", "regime": None}
 
-    returns_matrix = returns_df.values
-    macro_placeholder = np.zeros((returns_matrix.shape[0], 1))
-    features = build_feature_matrix(returns_matrix, macro_placeholder)
+    n_assets = len(returns_df.columns)
+
+    # Build macro feature matrix aligned to returns dates
+    macro_df = read_macro_matrix(conn, lookback_start, today)
+    if not macro_df.empty:
+        # Align macro data to the same date index as returns, forward-fill gaps
+        macro_aligned = macro_df.reindex(returns_df.index).ffill().fillna(0)
+        macro_matrix = macro_aligned.values
+    else:
+        # Fallback to zeros if no macro data available
+        macro_matrix = np.zeros((len(returns_df), 1))
+
+    features = build_feature_matrix(returns_df.values, macro_matrix)
 
     model = train_hmm(features, n_states=HMM_N_STATES)
     current_state, state_probs = decode_regime(model, features)
@@ -90,7 +105,7 @@ def refresh(conn: duckdb.DuckDBPyConnection = Depends(get_write_conn)):
 
     write_regime(conn, regime_label, confidence, transition_matrix)
 
-    # Run Monte Carlo per instrument
+    # Run Monte Carlo per instrument — use only the asset columns from blended params
     blended_means, blended_cov = blend_regime_params(model, state_probs)
     latest_prices_df = read_latest_prices(conn)
 
@@ -100,6 +115,7 @@ def refresh(conn: duckdb.DuckDBPyConnection = Depends(get_write_conn)):
         if col_idx is None:
             continue
 
+        # Extract only the asset's mean and variance (skip macro columns)
         asset_mean = np.array([blended_means[col_idx]])
         asset_cov = np.array([[blended_cov[col_idx, col_idx]]])
         current_price = np.array([row["close"]])
