@@ -108,6 +108,13 @@ def write_price_data(conn, instrument, df):
     """
     df["instrument"] = instrument
     df = df[["instrument", "date", "open", "high", "low", "close", "volume"]]
+    if not df.empty:
+        min_date = df["date"].min()
+        max_date = df["date"].max()
+        conn.execute(
+            "DELETE FROM price_history WHERE instrument = ? AND date BETWEEN ? AND ?",
+            [instrument, min_date, max_date],
+        )
     conn.execute("INSERT INTO price_history SELECT * FROM df")
 
 
@@ -232,6 +239,13 @@ def write_macro_data(conn, indicator, df):
     """
     df["indicator"] = indicator
     df = df[["indicator", "date", "value"]]
+    if not df.empty:
+        min_date = df["date"].min()
+        max_date = df["date"].max()
+        conn.execute(
+            "DELETE FROM macro_data WHERE indicator = ? AND date BETWEEN ? AND ?",
+            [indicator, min_date, max_date],
+        )
     conn.execute("INSERT INTO macro_data SELECT * FROM df")
 
 
