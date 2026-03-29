@@ -177,15 +177,13 @@ def read_latest_prices(conn):
         change_pct, high, low, volume
     """
     df = conn.execute("""
-        WITH latest AS (
-            SELECT instrument, MAX(date) AS max_date
+        SELECT instrument, date, open, high, low, close, volume
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY instrument ORDER BY date DESC) AS rn
             FROM price_history
-            GROUP BY instrument
         )
-        SELECT p.instrument, p.date, p.open, p.high, p.low, p.close, p.volume
-        FROM price_history p
-        JOIN latest l ON p.instrument = l.instrument AND p.date >= l.max_date - INTERVAL 1 DAY
-        ORDER BY p.instrument, p.date
+        WHERE rn <= 2
+        ORDER BY instrument, date
     """).fetchdf()
 
     result = []
