@@ -15,7 +15,6 @@ public class MarketHub : Hub
     /// <returns>Task</returns>
     public async Task SendMarketDataUpdated(object data)
     {
-        // TODO: call Clients.All.SendAsync("MarketDataUpdated", data)
         await Clients.All.SendAsync("MarketDataUpdated", data);
     }
 
