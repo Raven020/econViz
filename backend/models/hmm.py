@@ -20,25 +20,27 @@ def build_feature_matrix(returns: np.ndarray, macro: np.ndarray) -> np.ndarray:
     Returns:
         Feature matrix of shape (T, n_assets + n_macro) ready for HMM training.
     """
-    return np.column_stack([returns,macro])
+    return np.column_stack([returns, macro])
 
 
-def train_hmm(features: np.ndarray, n_states: int = 5, n_iter: int = 100) -> GaussianHMM:
+def train_hmm(features: np.ndarray, n_states: int = 5, n_iter: int = 100, random_state: int = 42) -> GaussianHMM:
     """Train a Gaussian HMM on the feature matrix.
 
     Fits a 5-state Gaussian HMM using EM on the provided feature matrix.
-    Uses a 5-year rolling window of data.
+    Uses a 5-year rolling window of data. The fixed random_state ensures
+    reproducible results and avoids the HMM label-switching problem.
 
     Args:
         features: Feature matrix of shape (T, n_features) from build_feature_matrix.
         n_states: Number of hidden states (default 5: Bull, Bear,
             Stagnation, Stagflation, Crisis).
         n_iter: Maximum EM iterations for training.
+        random_state: Random seed for reproducibility (default 42).
 
     Returns:
         Trained GaussianHMM model instance.
     """
-    model = GaussianHMM(n_components=n_states, n_iter= n_iter, covariance_type="full")
+    model = GaussianHMM(n_components=n_states, n_iter=n_iter, covariance_type="full", random_state=random_state)
     model.fit(features)
     return model
 
@@ -60,14 +62,20 @@ def decode_regime(model: GaussianHMM, features: np.ndarray) -> tuple[int, np.nda
             - current_probs: Array of shape (n_states,) with posterior
                 probabilities for each state at the latest time step
                 (the max value is the confidence score).
+
+    Raises:
+        ValueError: If features is empty (0 rows).
     """
-    state_sequence = model.predict(features) # Viterbi Path, regime estimation
-    current_state=  state_sequence[-1] # last entry will be todays regime
+    if features.shape[0] == 0:
+        raise ValueError("Cannot decode regime from empty feature matrix")
 
-    state_probs = model.predict_proba(features) # produces array of probabilites for each hidden state
-    current_probs = state_probs[-1] # gets probabilities for each hidden state for today.
+    state_sequence = model.predict(features)
+    current_state = state_sequence[-1]
 
-    return(current_state, current_probs)
+    state_probs = model.predict_proba(features)
+    current_probs = state_probs[-1]
+
+    return (current_state, current_probs)
 
 
 def get_transition_matrix(model: GaussianHMM) -> np.ndarray:
@@ -84,6 +92,4 @@ def get_transition_matrix(model: GaussianHMM) -> np.ndarray:
         Transition matrix of shape (n_states, n_states) where entry [i, j]
         is the probability of moving from regime i to regime j in 30 days.
     """
-    trans_matrix = np.linalg.matrix_power(model.transmat_, 30)
-
-    return trans_matrix
+    return np.linalg.matrix_power(model.transmat_, 30)

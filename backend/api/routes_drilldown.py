@@ -1,26 +1,34 @@
 # Drilldown routes — GET /internal/instrument/{ticker}
 # Returns price detail and historical OHLCV for a single instrument.
 
-from fastapi import APIRouter, HTTPException
+from datetime import date, timedelta
 
-from backend.config import DB_PATH
-from backend.data.store import init_db, read_latest_prices, read_price_history, read_regime
+from fastapi import APIRouter, Depends, HTTPException
+import duckdb
+
+from backend.api.deps import get_conn
+from backend.config import YAHOO_TICKERS, CRYPTO_IDS
+from backend.data.store import read_latest_prices, read_price_history, read_regime
+
+VALID_TICKERS = set(YAHOO_TICKERS.keys()) | set(CRYPTO_IDS.keys())
 
 router = APIRouter(prefix="/internal")
 
 
 @router.get("/instrument/{ticker}")
-def get_instrument(ticker: str):
-    conn = init_db(DB_PATH)
+def get_instrument(ticker: str, conn: duckdb.DuckDBPyConnection = Depends(get_conn)):
+    if ticker not in VALID_TICKERS:
+        raise HTTPException(status_code=404, detail=f"Unknown instrument: {ticker}")
 
     latest = read_latest_prices(conn)
     row = latest[latest["instrument"] == ticker]
     if row.empty:
-        conn.close()
         raise HTTPException(status_code=404, detail=f"Instrument {ticker} not found")
     row = row.iloc[0]
 
-    history = read_price_history(conn, ticker, "1900-01-01", "2099-12-31")
+    end = date.today()
+    start = end - timedelta(days=730)
+    history = read_price_history(conn, ticker, start, end)
     ohlcv = history.to_dict(orient="records")
 
     regime_data = read_regime(conn)
@@ -33,7 +41,6 @@ def get_instrument(ticker: str):
             "transition_matrix": transition_matrix.tolist(),
         }
 
-    conn.close()
     return {
         "ticker": ticker,
         "close": row["close"],

@@ -1,6 +1,7 @@
 # Configuration — instrument lists, API keys, DB path, constants.
 
 import os
+import warnings
 
 # --- Database ---
 DB_PATH = os.getenv("ECON_VIZ_DB_PATH", "data/econ_viz.duckdb")
@@ -8,6 +9,11 @@ DB_PATH = os.getenv("ECON_VIZ_DB_PATH", "data/econ_viz.duckdb")
 # --- API Keys ---
 FRED_API_KEY = os.getenv("FRED_API_KEY", "")
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY", "")
+
+if not FRED_API_KEY:
+    warnings.warn("FRED_API_KEY not set — FRED data fetching will be unavailable")
+if not COINGECKO_API_KEY:
+    warnings.warn("COINGECKO_API_KEY not set — CoinGecko may be rate-limited")
 
 # --- Instruments ---
 YAHOO_TICKERS = {
@@ -46,3 +52,10 @@ MC_HORIZON_DAYS = 30
 
 # --- Server ---
 PYTHON_API_PORT = 8000
+
+
+# --- Utilities ---
+def market_date():
+    """Return today's date in UTC for consistency across timezones."""
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).date()

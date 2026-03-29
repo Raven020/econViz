@@ -4,13 +4,14 @@
 
 import { Box, Chip, Typography } from "@mui/material";
 import { RegimeResponse } from "../lib/types";
+import { REGIME_COLORS } from "../theme/chartColors";
 
-const regimeColors: Record<string, string> = {
-  Bull: "#4caf50",
-  Bear: "#f44336",
-  Stagnation: "#ff9800",
-  Stagflation: "#e91e63",
-  Crisis: "#9c27b0",
+const regimeDescriptions: Record<string, string> = {
+  Bull: "Growth expansion and risk-on environment. Equities trending up, credit spreads tight, and moderate volatility. Typically characterized by rising SPY/QQQ, low VIX, and stable or rising yields.",
+  Bear: "Contraction and risk-off environment. Equities grinding lower, widening spreads, and rising defensive positioning. Typically characterized by declining SPY/QQQ, bonds bid, and mixed DXY.",
+  Stagnation: "Sideways, low volatility, and low growth. Range-bound markets with muted returns and low conviction. Typically characterized by flat equities, low VIX, stable yields, and low volume.",
+  Stagflation: "Low growth combined with rising inflation. Stocks and bonds both decline while commodities rise. Typically characterized by rising inflation expectations, gold/oil up, equities weak, and yields rising despite weak growth.",
+  Crisis: "Acute stress with extreme volatility and liquidity breakdown. Correlations spike, violent drawdowns, and panic selling. Typically characterized by VIX above 35, sharp equity drops, and flight to cash/treasuries.",
 };
 
 interface RegimeBannerProps {
@@ -18,15 +19,7 @@ interface RegimeBannerProps {
 }
 
 export default function RegimeBanner({ regime }: RegimeBannerProps) {
-  const color = regimeColors[regime.label] ?? "#90caf9";
-
-  const regimeDescriptions: Record<string, string> = {
-    Bull: "Growth expansion and risk-on environment. Equities trending up, credit spreads tight, and moderate volatility. Typically characterized by rising SPY/QQQ, low VIX, and stable or rising yields.",
-    Bear: "Contraction and risk-off environment. Equities grinding lower, widening spreads, and rising defensive positioning. Typically characterized by declining SPY/QQQ, bonds bid, and mixed DXY.",
-    Stagnation: "Sideways, low volatility, and low growth. Range-bound markets with muted returns and low conviction. Typically characterized by flat equities, low VIX, stable yields, and low volume.",
-    Stagflation: "Low growth combined with rising inflation. Stocks and bonds both decline while commodities rise. Typically characterized by rising inflation expectations, gold/oil up, equities weak, and yields rising despite weak growth.",
-    Crisis: "Acute stress with extreme volatility and liquidity breakdown. Correlations spike, violent drawdowns, and panic selling. Typically characterized by VIX above 35, sharp equity drops, and flight to cash/treasuries.",
-  };
+  const color = REGIME_COLORS[regime.label] ?? "#90caf9";
 
   return (
     <Box mb={2}>

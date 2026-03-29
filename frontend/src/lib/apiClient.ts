@@ -1,18 +1,34 @@
 // HTTP client wrapper for the C# gateway.
-// Configures base URL, error handling, and request defaults.
+// Configures base URL, error handling, timeout, and request defaults.
 
-// Base URL — point at the C# gateway on port 5000:
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-//Generic fetch helper — handles the URL prefix, JSON parsing, and error checking in one place so you don't repeat it in
-//every hook:
-export async function apiFetch<T>(path: string): Promise<T> {
-    const res = await fetch(`${BASE_URL}${path}`);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    return res.json();
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development" && !process.env.NEXT_PUBLIC_API_URL) {
+    console.warn("NEXT_PUBLIC_API_URL not set — API calls will be relative");
 }
 
-//Typed endpoint functions — one per gateway route, returning the correct type:
+export async function apiFetch<T>(path: string): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+        const res = await fetch(`${BASE_URL}${path}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            let detail = "";
+            try { detail = await res.text(); } catch { /* ignore */ }
+            throw new Error(`API error ${res.status}: ${detail}`);
+        }
+        return res.json();
+    } catch (err) {
+        clearTimeout(timeoutId);
+        if (err instanceof DOMException && err.name === "AbortError") {
+            throw new Error(`Request to ${path} timed out after 15s`);
+        }
+        throw err;
+    }
+}
+
 import type {
     InstrumentSummary,
     InstrumentDetail,
@@ -25,16 +41,20 @@ export const fetchDashboard = () =>
     apiFetch<InstrumentSummary[]>("/api/dashboard");
 
 export const fetchInstrument = (ticker: string) =>
-    apiFetch<InstrumentDetail>(`/api/instrument/${ticker}`);
+    apiFetch<InstrumentDetail>(`/api/instrument/${encodeURIComponent(ticker)}`);
 
 export const fetchChart = (ticker: string) =>
-    apiFetch<ChartDataPoint[]>(`/api/instrument/${ticker}/chart`);
+    apiFetch<ChartDataPoint[]>(`/api/instrument/${encodeURIComponent(ticker)}/chart`);
 
 export const fetchProjections = (ticker: string) =>
-    apiFetch<PercentilePath[]>(`/api/instrument/${ticker}/projections`);
+    apiFetch<PercentilePath[]>(`/api/instrument/${encodeURIComponent(ticker)}/projections`);
 
 export const fetchRegime = () =>
     apiFetch<RegimeResponse>("/api/regime");
 
-export const triggerRefresh = () =>
-    fetch(`${BASE_URL}/api/refresh`, { method: "POST" });
+export const triggerRefresh = () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    return fetch(`${BASE_URL}/api/refresh`, { method: "POST", signal: controller.signal })
+        .finally(() => clearTimeout(timeoutId));
+};

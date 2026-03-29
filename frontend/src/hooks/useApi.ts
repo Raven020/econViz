@@ -1,5 +1,5 @@
 // REST fetch hooks for the C# gateway API.
-// Uses SWR or React Query for caching and revalidation.
+// Uses SWR for caching and revalidation.
 
 "use client";
 
@@ -16,16 +16,16 @@ export function useDashboard() {
     return useSWR("dashboard", fetchDashboard);
 }
 
-export function useInstrument(ticker: string) {
-    return useSWR(`instrument-${ticker}`, () => fetchInstrument(ticker));
+export function useInstrument(ticker: string | null) {
+    return useSWR(ticker ? `instrument-${ticker}` : null, () => fetchInstrument(ticker!));
 }
 
-export function useChart(ticker: string) {
-    return useSWR(`chart-${ticker}`, () => fetchChart(ticker));
+export function useChart(ticker: string | null) {
+    return useSWR(ticker ? `chart-${ticker}` : null, () => fetchChart(ticker!));
 }
 
-export function useProjections(ticker: string) {
-    return useSWR(`projections-${ticker}`, () => fetchProjections(ticker));
+export function useProjections(ticker: string | null) {
+    return useSWR(ticker ? `projections-${ticker}` : null, () => fetchProjections(ticker!));
 }
 
 export function useRegime() {

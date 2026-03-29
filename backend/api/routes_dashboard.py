@@ -1,25 +1,27 @@
 # Dashboard routes — GET /internal/instruments
 # Returns all instrument prices, daily changes, and sparkline data.
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+import duckdb
 
-from backend.config import DB_PATH
-from backend.data.store import init_db, read_latest_prices, read_price_history
+from backend.api.deps import get_conn
+from backend.data.store import read_latest_prices, read_sparklines
 
 router = APIRouter(prefix="/internal")
 
 
 @router.get("/instruments")
-def get_instruments():
-    conn = init_db(DB_PATH)
+def get_instruments(conn: duckdb.DuckDBPyConnection = Depends(get_conn)):
     latest = read_latest_prices(conn)
+
+    sparklines = read_sparklines(conn)
+    sparkline_map = {}
+    for instrument, group in sparklines.groupby("instrument"):
+        sparkline_map[instrument] = group.sort_values("date")["close"].tolist()
 
     instruments = []
     for _, row in latest.iterrows():
         ticker = row["instrument"]
-        history = read_price_history(conn, ticker, "1900-01-01", "2099-12-31")
-        sparkline = history["close"].tail(30).tolist()
-
         instruments.append({
             "ticker": ticker,
             "close": row["close"],
@@ -28,8 +30,7 @@ def get_instruments():
             "high": row["high"],
             "low": row["low"],
             "volume": int(row["volume"]),
-            "sparkline": sparkline,
+            "sparkline": sparkline_map.get(ticker, []),
         })
 
-    conn.close()
     return instruments

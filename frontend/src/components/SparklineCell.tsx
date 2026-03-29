@@ -2,19 +2,23 @@
 
 "use client";
 
+import React, { useMemo } from "react";
 import { LineChart, Line, YAxis, ResponsiveContainer } from "recharts";
+import { CHART_COLORS } from "../theme/chartColors";
 
 interface SparklineCellProps {
   data: number[];
 }
 
-export default function SparklineCell({ data }: SparklineCellProps) {
-  const color = data[data.length - 1] >= data[0] ? "#4caf50" : "#f44336";
-  const chartData = data.map((value) => ({ value }));
-
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const padding = (max - min) * 0.05;
+const SparklineCell = React.memo(function SparklineCell({ data }: SparklineCellProps) {
+  const { color, chartData, min, max, padding } = useMemo(() => {
+    const c = data[data.length - 1] >= data[0] ? CHART_COLORS.positive : CHART_COLORS.negative;
+    const cd = data.map((value) => ({ value }));
+    const mn = Math.min(...data);
+    const mx = Math.max(...data);
+    const pd = (mx - mn) * 0.05;
+    return { color: c, chartData: cd, min: mn, max: mx, padding: pd };
+  }, [data]);
 
   return (
     <ResponsiveContainer width="100%" height={40}>
@@ -30,4 +34,6 @@ export default function SparklineCell({ data }: SparklineCellProps) {
       </LineChart>
     </ResponsiveContainer>
   );
-}
+});
+
+export default SparklineCell;

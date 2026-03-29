@@ -2,10 +2,12 @@
 
 "use client";
 
+import React, { useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Box, Typography, Grid, Paper } from "@mui/material";
+import { Box, Typography, Paper } from "@mui/material";
 import { InstrumentSummary } from "../lib/types";
 import SparklineCell from "./SparklineCell";
+import { CHART_COLORS } from "../theme/chartColors";
 
 interface DashboardGridProps {
   data: InstrumentSummary[];
@@ -20,13 +22,27 @@ const sectors: { name: string; tickers: string[] }[] = [
   { name: "Fixed Income & Rates", tickers: ["US_10Y", "US_2Y", "YIELD_SPREAD_2S10S"] },
 ];
 
-function InstrumentRow({ instrument, onClick }: { instrument: InstrumentSummary; onClick: () => void }) {
-  const changeColor = instrument.change >= 0 ? "#4caf50" : "#f44336";
+const InstrumentRow = React.memo(function InstrumentRow(
+  { instrument, onNavigate }: { instrument: InstrumentSummary; onNavigate: (ticker: string) => void }
+) {
+  const changeColor = instrument.change >= 0 ? CHART_COLORS.positive : CHART_COLORS.negative;
   const sign = instrument.change >= 0 ? "+" : "";
+
+  const handleClick = useCallback(() => onNavigate(instrument.ticker), [onNavigate, instrument.ticker]);
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onNavigate(instrument.ticker);
+    }
+  }, [onNavigate, instrument.ticker]);
 
   return (
     <Box
-      onClick={onClick}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`View ${instrument.ticker} details, price ${instrument.close.toFixed(2)}`}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -37,6 +53,7 @@ function InstrumentRow({ instrument, onClick }: { instrument: InstrumentSummary;
         borderBottom: "1px solid rgba(255,255,255,0.06)",
         "&:last-child": { borderBottom: "none" },
         "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
+        "&:focus-visible": { outline: "2px solid #90caf9", outlineOffset: -2 },
       }}
     >
       <Box sx={{ flex: 1, minWidth: 80 }}>
@@ -60,16 +77,20 @@ function InstrumentRow({ instrument, onClick }: { instrument: InstrumentSummary;
         </Typography>
       </Box>
       <Box sx={{ flex: 1.5, pl: 2 }}>
-        {instrument.sparkline && <SparklineCell data={instrument.sparkline} />}
+        {instrument.sparkline && instrument.sparkline.length > 0 && <SparklineCell data={instrument.sparkline} />}
       </Box>
     </Box>
   );
-}
+});
 
 export default function DashboardGrid({ data }: DashboardGridProps) {
   const router = useRouter();
 
-  const dataMap = new Map(data.map((d) => [d.ticker, d]));
+  const dataMap = useMemo(() => new Map(data.map((d) => [d.ticker, d])), [data]);
+
+  const handleNavigate = useCallback((ticker: string) => {
+    router.push(`/instrument/${ticker}`);
+  }, [router]);
 
   return (
     <Box
@@ -136,7 +157,7 @@ export default function DashboardGrid({ data }: DashboardGridProps) {
                   <InstrumentRow
                     key={instrument.ticker}
                     instrument={instrument}
-                    onClick={() => router.push(`/instrument/${instrument.ticker}`)}
+                    onNavigate={handleNavigate}
                   />
                 ))}
               </Box>

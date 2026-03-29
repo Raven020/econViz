@@ -32,6 +32,20 @@ class TestTrainHmm:
         model = train_hmm(features, n_states=3, n_iter=10)
         assert model.n_components == 3
 
+    def test_custom_random_state(self):
+        np.random.seed(42)
+        features = np.random.randn(200, 3)
+        model = train_hmm(features, n_states=3, n_iter=10, random_state=99)
+        assert model is not None
+
+    def test_reproducibility_with_same_seed(self):
+        features = np.random.RandomState(0).randn(200, 3)
+        model1 = train_hmm(features, n_states=3, n_iter=10, random_state=42)
+        model2 = train_hmm(features, n_states=3, n_iter=10, random_state=42)
+        state1, _ = decode_regime(model1, features)
+        state2, _ = decode_regime(model2, features)
+        assert state1 == state2
+
 
 class TestDecodeRegime:
     def test_returns_valid_state(self):
@@ -54,6 +68,25 @@ class TestDecodeRegime:
         model = train_hmm(features, n_states=4, n_iter=10)
         _, probs = decode_regime(model, features)
         assert probs.shape == (4,)
+
+    def test_empty_features_raises_valueerror(self):
+        np.random.seed(42)
+        features = np.random.randn(200, 3)
+        model = train_hmm(features, n_states=3, n_iter=10)
+
+        empty = np.empty((0, 3))
+        with pytest.raises(ValueError, match="empty feature matrix"):
+            decode_regime(model, empty)
+
+    def test_single_observation(self):
+        np.random.seed(42)
+        features = np.random.randn(200, 3)
+        model = train_hmm(features, n_states=3, n_iter=10)
+
+        single = np.random.randn(1, 3)
+        state, probs = decode_regime(model, single)
+        assert 0 <= state < 3
+        np.testing.assert_allclose(probs.sum(), 1.0, atol=1e-6)
 
 
 class TestGetTransitionMatrix:

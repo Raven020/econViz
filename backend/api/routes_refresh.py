@@ -1,14 +1,18 @@
 # Refresh routes — POST /internal/refresh
 # Triggers data fetch, HMM retrain, and Monte Carlo simulation.
 
-from datetime import date, timedelta
+import logging
+from datetime import timedelta
 
 import numpy as np
-from fastapi import APIRouter
+import requests
+from fastapi import APIRouter, Depends
+import duckdb
 
+from backend.api.deps import get_write_conn
 from backend.config import (
     CRYPTO_IDS,
-    DB_PATH,
+    market_date,
     FRED_SERIES,
     HMM_LOOKBACK_YEARS,
     HMM_N_STATES,
@@ -18,7 +22,6 @@ from backend.config import (
 )
 from backend.data import coingecko, fred, yahoo
 from backend.data.store import (
-    init_db,
     get_latest_date,
     write_price_data,
     write_macro_data,
@@ -31,52 +34,48 @@ from backend.models.hmm import build_feature_matrix, train_hmm, decode_regime, g
 from backend.models.montecarlo import simulate_paths, returns_to_prices, compute_percentiles
 from backend.models.regime import label_regime, blend_regime_params
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/internal")
 
 
-@router.post("/refresh")
-def refresh():
-    conn = init_db(DB_PATH)
-    today = date.today()
-    lookback_start = today - timedelta(days=365 * HMM_LOOKBACK_YEARS)
-
-    # Fetch Yahoo data
-    for name, ticker in YAHOO_TICKERS.items():
+def _fetch_and_store_prices(conn, tickers, fetch_fn, lookback_start, today):
+    """Common pattern for Yahoo and CoinGecko price fetching."""
+    for name, identifier in tickers.items():
         try:
             latest = get_latest_date(conn, name)
             start = (latest + timedelta(days=1)) if latest else lookback_start
             if start <= today:
-                df = yahoo.fetch(ticker, start, today)
+                df = fetch_fn(identifier, start, today)
                 if not df.empty:
                     write_price_data(conn, name, df)
-        except Exception as e:
-            print(f"[WARN] Yahoo fetch failed for {name}: {e}")
+        except (requests.RequestException, ValueError, KeyError) as e:
+            logger.warning("Fetch failed for %s: %s", name, e)
 
-    # Fetch crypto data
-    for name, coin_id in CRYPTO_IDS.items():
-        try:
-            latest = get_latest_date(conn, name)
-            start = (latest + timedelta(days=1)) if latest else lookback_start
-            if start <= today:
-                df = coingecko.fetch(coin_id, start, today)
-                if not df.empty:
-                    write_price_data(conn, name, df)
-        except Exception as e:
-            print(f"[WARN] CoinGecko fetch failed for {name}: {e}")
 
-    # Fetch FRED macro data
-    for name, series_id in FRED_SERIES.items():
+def _fetch_and_store_macro(conn, series_map, lookback_start, today):
+    """Common pattern for FRED macro data fetching."""
+    for name, series_id in series_map.items():
         try:
             df = fred.fetch(series_id, lookback_start, today)
             if not df.empty:
                 write_macro_data(conn, name, df)
-        except Exception as e:
-            print(f"[WARN] FRED fetch failed for {name}: {e}")
+        except (requests.RequestException, ValueError, KeyError) as e:
+            logger.warning("FRED fetch failed for %s: %s", name, e)
+
+
+@router.post("/refresh")
+def refresh(conn: duckdb.DuckDBPyConnection = Depends(get_write_conn)):
+    today = market_date()
+    lookback_start = today - timedelta(days=365 * HMM_LOOKBACK_YEARS)
+
+    _fetch_and_store_prices(conn, YAHOO_TICKERS, yahoo.fetch, lookback_start, today)
+    _fetch_and_store_prices(conn, CRYPTO_IDS, coingecko.fetch, lookback_start, today)
+    _fetch_and_store_macro(conn, FRED_SERIES, lookback_start, today)
 
     # Train HMM and detect regime
     returns_df = read_all_returns(conn, lookback_start, today)
     if returns_df.empty:
-        conn.close()
         return {"status": "refreshed", "regime": None}
 
     returns_matrix = returns_df.values
@@ -112,7 +111,6 @@ def refresh():
         projection_dict = {p: vals[:, 0].tolist() for p, vals in cones.items()}
         write_montecarlo(conn, ticker, projection_dict)
 
-    conn.close()
     return {
         "status": "refreshed",
         "regime": {

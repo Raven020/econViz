@@ -1,5 +1,4 @@
 // Refresh button — triggers data fetch + HMM retrain.
-// Shows progress status via SignalR events.
 
 "use client";
 
@@ -8,11 +7,10 @@ import { Button, Typography, Box } from "@mui/material";
 import { triggerRefresh } from "../lib/apiClient";
 
 interface RefreshButtonProps {
-  onProgress?: (message: string) => void;
   onComplete?: () => void;
 }
 
-export default function RefreshButton({ onProgress, onComplete }: RefreshButtonProps) {
+export default function RefreshButton({ onComplete }: RefreshButtonProps) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 

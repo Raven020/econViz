@@ -13,6 +13,8 @@ import duckdb
 import numpy as np
 import pandas as pd
 
+from backend.config import market_date as _market_date
+
 
 def init_db(db_path):
     """
@@ -60,6 +62,12 @@ def init_db(db_path):
             day_21 DOUBLE, day_22 DOUBLE, day_23 DOUBLE, day_24 DOUBLE, day_25 DOUBLE,
             day_26 DOUBLE, day_27 DOUBLE, day_28 DOUBLE, day_29 DOUBLE, day_30 DOUBLE
         );
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_ph_inst_date ON price_history(instrument, date);
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_mc_inst_date ON montecarlo(instrument, date);
     """)
     return conn
 
@@ -192,6 +200,22 @@ def read_latest_prices(conn):
     return pd.DataFrame(result)
 
 
+def read_sparklines(conn):
+    """
+    Fetch the last 30 closing prices for all instruments in a single query.
+    Used by the dashboard to render sparkline charts without N+1 queries.
+
+    Returns:
+        pd.DataFrame: rows with columns: instrument, date, close
+    """
+    return conn.execute("""
+        SELECT instrument, date, close
+        FROM price_history
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY instrument ORDER BY date DESC) <= 30
+        ORDER BY instrument, date
+    """).fetchdf()
+
+
 def write_macro_data(conn, indicator, df):
     """
     Args:
@@ -251,7 +275,7 @@ def write_regime(conn, regime_label, confidence, transition_matrix):
     matrix_json = json.dumps(transition_matrix.tolist())
     conn.execute(
         "INSERT INTO regime VALUES (?, ?, ?, ?)",
-        [date.today(), regime_label, confidence, matrix_json]
+        [_market_date(), regime_label, confidence, matrix_json]
     )
 
 
@@ -293,7 +317,7 @@ def write_montecarlo(conn, instrument, projection_cones):
     Returns:
         None
     """
-    today = date.today()
+    today = _market_date()
     for percentile, values in projection_cones.items():
         conn.execute(
             "INSERT INTO montecarlo VALUES (?, ?, ?, " + ", ".join(["?"] * 30) + ")",
@@ -324,4 +348,4 @@ def read_montecarlo(conn, instrument):
         WHERE instrument = ? AND date = (SELECT MAX(date) FROM montecarlo WHERE instrument = ?)
         ORDER BY percentile
     """, [instrument, instrument]).fetchdf()
-    return result if len(result) > 0 else None
+    return result

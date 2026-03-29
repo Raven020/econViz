@@ -4,6 +4,7 @@
 
 import { Box, Typography, Grid } from "@mui/material";
 import { InstrumentDetail as InstrumentDetailType } from "../lib/types";
+import { CHART_COLORS } from "../theme/chartColors";
 
 interface InstrumentDetailProps {
   data: InstrumentDetailType;
@@ -21,7 +22,7 @@ function StatItem({ label, value }: { label: string; value: string }) {
 }
 
 export default function InstrumentDetail({ data }: InstrumentDetailProps) {
-  const changeColor = data.change >= 0 ? "#4caf50" : "#f44336";
+  const changeColor = data.change >= 0 ? CHART_COLORS.positive : CHART_COLORS.negative;
   const sign = data.change >= 0 ? "+" : "";
 
   return (

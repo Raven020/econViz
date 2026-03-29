@@ -2,6 +2,7 @@
 
 "use client";
 
+import React from "react";
 import {
   LineChart,
   Line,
@@ -12,15 +13,16 @@ import {
   CartesianGrid,
 } from "recharts";
 import { ChartDataPoint } from "../lib/types";
+import { CHART_COLORS } from "../theme/chartColors";
 
 interface PriceChartProps {
   data: ChartDataPoint[];
 }
 
-export default function PriceChart({ data }: PriceChartProps) {
+const PriceChart = React.memo(function PriceChart({ data }: PriceChartProps) {
   const color = data.length >= 2 && data[data.length - 1].close >= data[0].close
-    ? "#4caf50"
-    : "#f44336";
+    ? CHART_COLORS.positive
+    : CHART_COLORS.negative;
 
   return (
     <ResponsiveContainer width="100%" height={400}>
@@ -49,4 +51,6 @@ export default function PriceChart({ data }: PriceChartProps) {
       </LineChart>
     </ResponsiveContainer>
   );
-}
+});
+
+export default PriceChart;

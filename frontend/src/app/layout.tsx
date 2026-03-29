@@ -1,9 +1,13 @@
-// Root layout — MUI ThemeProvider, global styles, metadata.
+// Root layout — metadata and providers.
 
-"use client";
+import type { Metadata } from "next";
+import Providers from "../components/Providers";
 
-import { ThemeProvider, CssBaseline } from "@mui/material";
-import theme from "../theme/theme";
+export const metadata: Metadata = {
+  title: "EconViz - Market Regime Dashboard",
+  description:
+    "Economic indicator dashboard using Hidden Markov Models for market regime detection and Monte Carlo simulations for price projections.",
+};
 
 export default function RootLayout({
   children,
@@ -13,10 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          {children}
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

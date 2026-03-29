@@ -38,12 +38,21 @@ def fetch(coin_id, start_date, end_date):
         f"{COINGECKO_BASE_URL}/coins/{coin_id}/market_chart/range",
         params={"vs_currency": "usd", "from": start_ts, "to": end_ts},
         headers=headers,
+        timeout=30,
     )
     response.raise_for_status()
     data = response.json()
 
+    if not isinstance(data, dict):
+        raise ValueError(f"CoinGecko returned unexpected format: {type(data)}")
+    if "prices" not in data or "total_volumes" not in data:
+        raise ValueError(f"CoinGecko response missing required fields. Keys: {list(data.keys())}")
+
     prices = data["prices"]
     volumes = data["total_volumes"]
+
+    if not prices:
+        return pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
 
     df = pd.DataFrame(prices, columns=["timestamp", "close"])
     df["date"] = pd.to_datetime(df["timestamp"], unit="ms").dt.date

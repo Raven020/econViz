@@ -31,7 +31,13 @@ export default function CommandPalette({ instruments }: CommandPaletteProps) {
   }, []);
 
   return (
-    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+    <Dialog
+      open={open}
+      onClose={() => setOpen(false)}
+      fullWidth
+      maxWidth="sm"
+      aria-label="Search instruments"
+    >
       <Autocomplete
         autoFocus
         openOnFocus
@@ -39,7 +45,7 @@ export default function CommandPalette({ instruments }: CommandPaletteProps) {
         getOptionLabel={(option) => option.ticker}
         onChange={(_, value) => {
           if (value) {
-            router.push(`/instrument/${value.ticker}`);
+            router.push(`/instrument/${encodeURIComponent(value.ticker)}`);
             setOpen(false);
           }
         }}

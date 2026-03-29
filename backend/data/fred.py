@@ -24,6 +24,8 @@ def fetch(series_id, start_date, end_date):
     Returns:
         pd.DataFrame: columns — date, value
     """
+    if not FRED_API_KEY:
+        raise ValueError("FRED_API_KEY is required but not set. Set it in environment variables.")
     fred = Fred(api_key=FRED_API_KEY)
     series = fred.get_series(series_id, observation_start=start_date, observation_end=end_date)
 

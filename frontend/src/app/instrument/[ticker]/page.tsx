@@ -12,13 +12,25 @@ import PriceChart from "../../../components/PriceChart";
 import MonteCarloChart from "../../../components/MonteCarloChart";
 import RegimeBanner from "../../../components/RegimeBanner";
 
+const VALID_TICKER_RE = /^[A-Z0-9_]{1,20}$/;
+
 export default function InstrumentPage() {
   const params = useParams();
-  const ticker = params.ticker as string;
+  const ticker = decodeURIComponent(params.ticker as string);
   const router = useRouter();
 
-  const { data: detail, error, isLoading } = useInstrument(ticker);
-  const { data: projections } = useProjections(ticker);
+  const isValidTicker = VALID_TICKER_RE.test(ticker);
+
+  const { data: detail, error, isLoading } = useInstrument(isValidTicker ? ticker : null);
+  const { data: projections } = useProjections(isValidTicker ? ticker : null);
+
+  if (!isValidTicker) {
+    return (
+      <Container sx={{ py: 4 }}>
+        <Typography color="error">Invalid ticker: {ticker}</Typography>
+      </Container>
+    );
+  }
 
   if (isLoading) {
     return (
