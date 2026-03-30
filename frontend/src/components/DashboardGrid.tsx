@@ -32,11 +32,23 @@ const MACRO_FORMAT: Record<string, (v: number) => string> = {
   FED_FUNDS: (v) => `${v.toFixed(2)}%`,
   INFLATION_5Y: (v) => `${v.toFixed(2)}%`,
   JOBLESS_CLAIMS: (v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 }),
-  YIELD_SPREAD_2S10S: (v) => `${(v * 100).toFixed(0)} bps`,
+  YIELD_SPREAD_2S10S: (v) => `${v.toFixed(2)}%`,
+};
+
+// Format change as absolute value with appropriate units (not % of %)
+const MACRO_CHANGE_FORMAT: Record<string, (v: number) => string> = {
+  FED_FUNDS: (v) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(0)} bps`,
+  INFLATION_5Y: (v) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(0)} bps`,
+  JOBLESS_CLAIMS: (v) => `${v >= 0 ? "+" : ""}${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+  YIELD_SPREAD_2S10S: (v) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(0)} bps`,
 };
 
 function formatMacroValue(indicator: string, value: number): string {
   return (MACRO_FORMAT[indicator] ?? ((v: number) => v.toFixed(2)))(value);
+}
+
+function formatMacroChange(indicator: string, change: number): string {
+  return (MACRO_CHANGE_FORMAT[indicator] ?? ((v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(4)}`))(change);
 }
 
 const InstrumentRow = React.memo(function InstrumentRow(
@@ -102,7 +114,6 @@ const InstrumentRow = React.memo(function InstrumentRow(
 
 function MacroRow({ item }: { item: MacroSummary }) {
   const changeColor = item.change >= 0 ? CHART_COLORS.positive : CHART_COLORS.negative;
-  const sign = item.change >= 0 ? "+" : "";
   const displayName = MACRO_DISPLAY_NAMES[item.indicator] ?? item.indicator;
 
   return (
@@ -127,14 +138,9 @@ function MacroRow({ item }: { item: MacroSummary }) {
           {formatMacroValue(item.indicator, item.value)}
         </Typography>
       </Box>
-      <Box sx={{ flex: 1, textAlign: "right" }}>
+      <Box sx={{ flex: 2, textAlign: "right" }}>
         <Typography variant="body2" sx={{ color: changeColor }}>
-          {sign}{item.change.toFixed(4)}
-        </Typography>
-      </Box>
-      <Box sx={{ flex: 1, textAlign: "right" }}>
-        <Typography variant="body2" sx={{ color: changeColor }}>
-          {sign}{item.change_pct.toFixed(2)}%
+          {formatMacroChange(item.indicator, item.change)}
         </Typography>
       </Box>
       <Box sx={{ flex: 1.5, pl: 2 }}>
@@ -215,7 +221,7 @@ export default function DashboardGrid({ data, macro }: DashboardGridProps) {
       })}
 
       {macro && macro.length > 0 && (
-        <SectorCard title="Macro Indicators" headers={["Indicator", "Value", "Change", "Change %", "30D Trend"]}>
+        <SectorCard title="Macro Indicators" headers={["Indicator", "Value", "Change", "30D Trend"]}>
           {macro.map((item) => (
             <MacroRow key={item.indicator} item={item} />
           ))}
