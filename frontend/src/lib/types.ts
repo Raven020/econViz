@@ -42,8 +42,29 @@ export interface InstrumentDetail {
     regime: RegimeResponse | null;
 }
 
+// MacroSummary — one row in the macro indicators section:
+export interface MacroSummary {
+    indicator: string;
+    value: number;
+    change: number;
+    change_pct: number;
+    date: string;
+    sparkline: number[];
+}
+
 //PercentilePath(from ProjectionDto.cs) — one band of the Monte Carlo cone:
 export interface PercentilePath {
     percentile: number;
     values: number[];
+}
+
+// Pre-shaped chart row from gateway — ready for Recharts:
+export interface ProjectionChartRow {
+    day: number;
+    actual?: number;
+    p10?: number;
+    p25?: number;
+    p50?: number;
+    p75?: number;
+    p90?: number;
 }

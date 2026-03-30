@@ -18,6 +18,8 @@ from backend.data.store import (
     read_sparklines,
     write_macro_data,
     read_macro_data,
+    read_latest_macro,
+    read_macro_sparklines,
     read_macro_matrix,
     write_regime,
     read_regime,
@@ -233,6 +235,51 @@ class TestMacroData:
         df = pd.DataFrame({"date": [date(2024, 1, 1), date(2024, 1, 2)], "value": [4.5, 4.6]})
         write_macro_data(conn, "FED_FUNDS", df)
         assert get_latest_macro_date(conn, "FED_FUNDS") == date(2024, 1, 2)
+
+
+class TestMacroLatest:
+    def test_read_latest_macro(self, conn):
+        for d in range(1, 6):
+            df = pd.DataFrame({"date": [date(2024, 1, d)], "value": [4.0 + d * 0.1]})
+            write_macro_data(conn, "FED_FUNDS", df)
+        result = read_latest_macro(conn)
+        assert len(result) == 1
+        assert result.iloc[0]["indicator"] == "FED_FUNDS"
+        assert result.iloc[0]["value"] == pytest.approx(4.5)
+        assert result.iloc[0]["change"] != 0.0
+
+    def test_read_latest_macro_single_point(self, conn):
+        df = pd.DataFrame({"date": [date(2024, 1, 1)], "value": [4.5]})
+        write_macro_data(conn, "FED_FUNDS", df)
+        result = read_latest_macro(conn)
+        assert len(result) == 1
+        assert result.iloc[0]["change"] == 0.0
+
+    def test_read_latest_macro_empty(self, conn):
+        result = read_latest_macro(conn)
+        assert result.empty
+
+    def test_read_latest_macro_multiple_indicators(self, conn):
+        for name, base in [("FED_FUNDS", 4.0), ("INFLATION_5Y", 2.0)]:
+            for d in range(1, 4):
+                df = pd.DataFrame({"date": [date(2024, 1, d)], "value": [base + d * 0.1]})
+                write_macro_data(conn, name, df)
+        result = read_latest_macro(conn)
+        assert len(result) == 2
+        indicators = set(result["indicator"].tolist())
+        assert indicators == {"FED_FUNDS", "INFLATION_5Y"}
+
+    def test_read_macro_sparklines(self, conn):
+        for d in range(1, 35):
+            df = pd.DataFrame({"date": [date(2024, 1, 1) + timedelta(days=d)], "value": [4.0 + d * 0.01]})
+            write_macro_data(conn, "FED_FUNDS", df)
+        result = read_macro_sparklines(conn)
+        fed = result[result["indicator"] == "FED_FUNDS"]
+        assert len(fed) == 30  # capped at 30
+
+    def test_read_macro_sparklines_empty(self, conn):
+        result = read_macro_sparklines(conn)
+        assert result.empty
 
 
 class TestMacroMatrix:

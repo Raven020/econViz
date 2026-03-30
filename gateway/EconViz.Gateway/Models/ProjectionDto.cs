@@ -1,14 +1,25 @@
-// DTOs for Monte Carlo projection endpoint response.
+// DTOs for Monte Carlo projection endpoint responses.
 
 namespace EconViz.Gateway.Models;
 
 /// <summary>
-/// One percentile band of the Monte Carlo projection cone.
-/// Constructed in PythonApiClient by flattening day_1..day_30 into a list.
+/// One percentile band of the Monte Carlo projection cone (internal use).
 /// </summary>
-/// <param name="Percentile">Percentile level (10, 25, 50, 75, or 90)</param>
-/// <param name="Values">List of 30 projected prices, one per forward day</param>
 public record PercentilePath(
     int Percentile,
     List<double> Values
+);
+
+/// <summary>
+/// Pre-shaped chart row for the projection cone — one row per day.
+/// Ready to pass directly to Recharts on the frontend.
+/// </summary>
+public record ProjectionChartRow(
+    int Day,
+    double? Actual,
+    double? P10,
+    double? P25,
+    double? P50,
+    double? P75,
+    double? P90
 );

@@ -38,6 +38,15 @@ public class PythonApiClient
     }
 
     /// <summary>
+    /// Fetches macro indicator summaries (fed funds, inflation, jobless claims, yield spread).
+    /// Calls: GET /internal/macro
+    /// </summary>
+    public async Task<List<MacroSummary>> GetMacroAsync()
+    {
+        return await _http.GetFromJsonAsync<List<MacroSummary>>("/internal/macro", _jsonOptions);
+    }
+
+    /// <summary>
     /// Fetches full detail for a single instrument including OHLCV history and regime.
     /// Calls: GET /internal/instrument/{ticker}
     /// </summary>
@@ -84,5 +93,60 @@ public class PythonApiClient
             paths.Add(new PercentilePath(percentile, values));
         }
         return paths;
+    }
+
+    /// <summary>
+    /// Returns pre-shaped chart data: history (last 30 days) + bridge + projections (30 days).
+    /// Each row has day, actual, p10, p25, p50, p75, p90 — ready for Recharts.
+    /// </summary>
+    public async Task<List<ProjectionChartRow>> GetProjectionChartAsync(string ticker)
+    {
+        var paths = await GetProjectionsAsync(ticker);
+        var detail = await GetInstrumentAsync(ticker);
+
+        var chart = new List<ProjectionChartRow>();
+
+        // History (last 30 days, negative day numbers)
+        if (detail?.History != null)
+        {
+            var histSlice = detail.History.TakeLast(30).ToList();
+            for (int i = 0; i < histSlice.Count; i++)
+            {
+                chart.Add(new ProjectionChartRow(
+                    Day: i - histSlice.Count,
+                    Actual: histSlice[i].Close,
+                    P10: null, P25: null, P50: null, P75: null, P90: null
+                ));
+            }
+
+            // Bridge row (day 0) — connects history to projections
+            var lastClose = histSlice.Last().Close;
+            chart.Add(new ProjectionChartRow(
+                Day: 0,
+                Actual: lastClose,
+                P10: lastClose, P25: lastClose, P50: lastClose, P75: lastClose, P90: lastClose
+            ));
+        }
+
+        // Projection rows (days 1-30)
+        if (paths.Count > 0)
+        {
+            var pathMap = paths.ToDictionary(p => p.Percentile, p => p.Values);
+            int days = paths[0].Values.Count;
+            for (int d = 0; d < days; d++)
+            {
+                chart.Add(new ProjectionChartRow(
+                    Day: d + 1,
+                    Actual: null,
+                    P10: pathMap.GetValueOrDefault(10)?[d],
+                    P25: pathMap.GetValueOrDefault(25)?[d],
+                    P50: pathMap.GetValueOrDefault(50)?[d],
+                    P75: pathMap.GetValueOrDefault(75)?[d],
+                    P90: pathMap.GetValueOrDefault(90)?[d]
+                ));
+            }
+        }
+
+        return chart;
     }
 }

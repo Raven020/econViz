@@ -1,11 +1,11 @@
-# Dashboard routes — GET /internal/instruments
-# Returns all instrument prices, daily changes, and sparkline data.
+# Dashboard routes — GET /internal/instruments, GET /internal/macro
+# Returns all instrument prices, daily changes, sparkline data, and macro indicators.
 
 from fastapi import APIRouter, Depends
 import duckdb
 
 from backend.api.deps import get_conn
-from backend.data.store import read_latest_prices, read_sparklines
+from backend.data.store import read_latest_prices, read_sparklines, read_latest_macro, read_macro_sparklines
 
 router = APIRouter(prefix="/internal")
 
@@ -34,3 +34,27 @@ def get_instruments(conn: duckdb.DuckDBPyConnection = Depends(get_conn)):
         })
 
     return instruments
+
+
+@router.get("/macro")
+def get_macro(conn: duckdb.DuckDBPyConnection = Depends(get_conn)):
+    latest = read_latest_macro(conn)
+
+    sparklines = read_macro_sparklines(conn)
+    sparkline_map = {}
+    for indicator, group in sparklines.groupby("indicator"):
+        sparkline_map[indicator] = group.sort_values("date")["value"].tolist()
+
+    indicators = []
+    for _, row in latest.iterrows():
+        name = row["indicator"]
+        indicators.append({
+            "indicator": name,
+            "value": row["value"],
+            "change": row["change"],
+            "change_pct": row["change_pct"],
+            "date": row["date"],
+            "sparkline": sparkline_map.get(name, []),
+        })
+
+    return indicators

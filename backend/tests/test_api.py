@@ -81,6 +81,57 @@ class TestDashboardRoute:
         assert response.json() == []
 
 
+def _sample_macro():
+    return pd.DataFrame({
+        "indicator": ["FED_FUNDS", "INFLATION_5Y"],
+        "value": [4.5, 2.1],
+        "change": [0.1, -0.05],
+        "change_pct": [2.27, -2.33],
+        "date": ["2024-01-03", "2024-01-03"],
+    })
+
+
+def _sample_macro_sparklines():
+    dates = [date(2024, 1, i) for i in range(1, 31)]
+    rows = []
+    for ind in ["FED_FUNDS", "INFLATION_5Y"]:
+        for d in dates:
+            rows.append({"indicator": ind, "date": d, "value": 4.5})
+    return pd.DataFrame(rows)
+
+
+# --- Macro Route ---
+class TestMacroRoute:
+    @patch("backend.api.routes_dashboard.read_macro_sparklines")
+    @patch("backend.api.routes_dashboard.read_latest_macro")
+    @patch("backend.api.deps.connect")
+    def test_get_macro(self, mock_init, mock_latest, mock_sparklines):
+        mock_init.return_value = _mock_conn()
+        mock_latest.return_value = _sample_macro()
+        mock_sparklines.return_value = _sample_macro_sparklines()
+
+        response = client.get("/internal/macro")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 2
+        assert data[0]["indicator"] == "FED_FUNDS"
+        assert "value" in data[0]
+        assert "sparkline" in data[0]
+        assert "change_pct" in data[0]
+
+    @patch("backend.api.routes_dashboard.read_macro_sparklines")
+    @patch("backend.api.routes_dashboard.read_latest_macro")
+    @patch("backend.api.deps.connect")
+    def test_get_macro_empty(self, mock_init, mock_latest, mock_sparklines):
+        mock_init.return_value = _mock_conn()
+        mock_latest.return_value = pd.DataFrame(columns=["indicator", "value", "change", "change_pct", "date"])
+        mock_sparklines.return_value = pd.DataFrame(columns=["indicator", "date", "value"])
+
+        response = client.get("/internal/macro")
+        assert response.status_code == 200
+        assert response.json() == []
+
+
 # --- Connection Cleanup ---
 class TestConnectionCleanup:
     @patch("backend.api.deps.connect")

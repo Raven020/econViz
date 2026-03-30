@@ -6,7 +6,7 @@
 import { useParams } from "next/navigation";
 import { Box, Typography, Container, Button } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { useInstrument, useProjections } from "../../../hooks/useApi";
+import { useInstrument, useProjectionChart } from "../../../hooks/useApi";
 import InstrumentDetail from "../../../components/InstrumentDetail";
 import PriceChart from "../../../components/PriceChart";
 import MonteCarloChart from "../../../components/MonteCarloChart";
@@ -22,7 +22,7 @@ export default function InstrumentPage() {
   const isValidTicker = VALID_TICKER_RE.test(ticker);
 
   const { data: detail, error, isLoading } = useInstrument(isValidTicker ? ticker : null);
-  const { data: projections } = useProjections(isValidTicker ? ticker : null);
+  const { data: projectionChart } = useProjectionChart(isValidTicker ? ticker : null);
 
   if (!isValidTicker) {
     return (
@@ -65,7 +65,7 @@ export default function InstrumentPage() {
         <PriceChart data={detail.history} />
       </Box>
 
-      {projections && projections.length > 0 && (
+      {projectionChart && projectionChart.length > 0 && (
         <Box mb={4}>
           <Typography variant="h5" gutterBottom>
             30-Day Monte Carlo Projections
@@ -81,7 +81,7 @@ export default function InstrumentPage() {
             simulation, these projections are internally consistent — if equities project down in
             a risk-off regime, safe havens project accordingly.
           </Typography>
-          <MonteCarloChart paths={projections} history={detail.history} />
+          <MonteCarloChart data={projectionChart} />
         </Box>
       )}
     </Container>

@@ -1,9 +1,9 @@
 // Monte Carlo projection cone chart using Recharts ComposedChart.
-// Renders percentile bands (10/25/50/75/90) with memoized data transforms.
+// Receives pre-shaped data from the gateway — no client-side transposition needed.
 
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import {
   ComposedChart,
   Area,
@@ -14,51 +14,19 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { PercentilePath, ChartDataPoint } from "../lib/types";
+import { ProjectionChartRow } from "../lib/types";
 import { CHART_COLORS, PERCENTILE_COLORS } from "../theme/chartColors";
 
 interface MonteCarloChartProps {
-  paths: PercentilePath[];
-  history?: ChartDataPoint[];
+  data: ProjectionChartRow[];
 }
 
-const MonteCarloChart = React.memo(function MonteCarloChart({ paths, history }: MonteCarloChartProps) {
-  const chartData = useMemo(() => {
-    if (paths.length === 0) return null;
-
-    const days = paths[0].values.length;
-
-    const histSlice = history ? history.slice(-30) : [];
-    const histData = histSlice.map((point, i) => {
-      const row: Record<string, number | undefined> = { day: i - histSlice.length };
-      row.actual = point.close;
-      return row;
-    });
-
-    const projData = Array.from({ length: days }, (_, i) => {
-      const row: Record<string, number | undefined> = { day: i + 1 };
-      for (const path of paths) {
-        row[`p${path.percentile}`] = path.values[i];
-      }
-      return row;
-    });
-
-    const bridgeRow: Record<string, number | undefined> = { day: 0 };
-    if (histSlice.length > 0) {
-      bridgeRow.actual = histSlice[histSlice.length - 1].close;
-      for (const path of paths) {
-        bridgeRow[`p${path.percentile}`] = histSlice[histSlice.length - 1].close;
-      }
-    }
-
-    return [...histData, bridgeRow, ...projData];
-  }, [paths, history]);
-
-  if (!chartData) return null;
+const MonteCarloChart = React.memo(function MonteCarloChart({ data }: MonteCarloChartProps) {
+  if (data.length === 0) return null;
 
   return (
     <ResponsiveContainer width="100%" height={400}>
-      <ComposedChart data={chartData}>
+      <ComposedChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="#333" />
         <XAxis
           dataKey="day"

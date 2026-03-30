@@ -192,6 +192,45 @@ def read_sparklines(conn):
     """).fetchdf()
 
 
+def read_latest_macro(conn):
+    """Read the 2 most recent values per macro indicator and compute change."""
+    df = conn.execute("""
+        SELECT indicator, date, value
+        FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY indicator ORDER BY date DESC) AS rn
+            FROM macro_data
+        )
+        WHERE rn <= 2
+        ORDER BY indicator, date
+    """).fetchdf()
+
+    result = []
+    for indicator, group in df.groupby("indicator"):
+        group = group.sort_values("date")
+        latest = group.iloc[-1]
+        prev_val = group.iloc[-2]["value"] if len(group) > 1 else latest["value"]
+        change = latest["value"] - prev_val
+        change_pct = (change / abs(prev_val)) * 100 if prev_val != 0 else 0.0
+        result.append({
+            "indicator": indicator,
+            "value": latest["value"],
+            "change": change,
+            "change_pct": change_pct,
+            "date": str(latest["date"]),
+        })
+    return pd.DataFrame(result)
+
+
+def read_macro_sparklines(conn):
+    """Fetch the last 30 values per macro indicator in a single query."""
+    return conn.execute("""
+        SELECT indicator, date, value
+        FROM macro_data
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY indicator ORDER BY date DESC) <= 30
+        ORDER BY indicator, date
+    """).fetchdf()
+
+
 def read_macro_matrix(conn, start_date, end_date):
     """Read macro indicators as a date-indexed matrix for HMM features.
 

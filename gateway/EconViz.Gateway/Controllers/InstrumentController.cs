@@ -68,4 +68,18 @@ public class InstrumentController : ControllerBase
         if (data == null) return NotFound();
         return Ok(data);
     }
+
+    /// <summary>
+    /// GET /api/instrument/{ticker}/projections/chart — returns pre-shaped chart data.
+    /// History + bridge + projection rows ready for Recharts.
+    /// </summary>
+    [HttpGet("{ticker}/projections/chart")]
+    public async Task<IActionResult> GetProjectionChart(string ticker)
+    {
+        var data = await _cache.GetOrSetAsync($"projections_chart_{ticker}",
+            () => _python.GetProjectionChartAsync(ticker), isProjection: true);
+
+        if (data == null || data.Count == 0) return NotFound();
+        return Ok(data);
+    }
 }

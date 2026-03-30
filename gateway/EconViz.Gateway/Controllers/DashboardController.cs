@@ -1,6 +1,5 @@
-// Dashboard controller — GET /api/dashboard
-// Aggregates instrument prices, daily changes, and regime info
-// from the Python backend into a single response.
+// Dashboard controller — GET /api/dashboard, GET /api/dashboard/macro
+// Aggregates instrument prices and macro indicators from the Python backend.
 
 using Microsoft.AspNetCore.Mvc;
 using EconViz.Gateway.Services;
@@ -22,15 +21,23 @@ public class DashboardController : ControllerBase
 
     /// <summary>
     /// GET /api/dashboard — returns all instruments with prices, changes, and sparklines.
-    /// Caches with the price TTL (60s).
     /// </summary>
-    /// <returns>200 OK with List of InstrumentSummary</returns>
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        // retrieves dashboard data
         var data = await _cache.GetOrSetAsync("instruments",
             () => _python.GetInstrumentsAsync());
+        return Ok(data);
+    }
+
+    /// <summary>
+    /// GET /api/dashboard/macro — returns macro indicator summaries with sparklines.
+    /// </summary>
+    [HttpGet("macro")]
+    public async Task<IActionResult> GetMacro()
+    {
+        var data = await _cache.GetOrSetAsync("macro",
+            () => _python.GetMacroAsync());
         return Ok(data);
     }
 }

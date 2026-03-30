@@ -35,6 +35,8 @@ import type {
     ChartDataPoint,
     RegimeResponse,
     PercentilePath,
+    MacroSummary,
+    ProjectionChartRow,
 } from "./types";
 
 export const fetchDashboard = () =>
@@ -51,6 +53,12 @@ export const fetchProjections = (ticker: string) =>
 
 export const fetchRegime = () =>
     apiFetch<RegimeResponse>("/api/regime");
+
+export const fetchMacro = () =>
+    apiFetch<MacroSummary[]>("/api/dashboard/macro");
+
+export const fetchProjectionChart = (ticker: string) =>
+    apiFetch<ProjectionChartRow[]>(`/api/instrument/${encodeURIComponent(ticker)}/projections/chart`);
 
 export const triggerRefresh = () => {
     const controller = new AbortController();

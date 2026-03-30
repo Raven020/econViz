@@ -10,6 +10,8 @@ import {
     fetchChart,
     fetchProjections,
     fetchRegime,
+    fetchMacro,
+    fetchProjectionChart,
 } from "../lib/apiClient";
 
 export function useDashboard() {
@@ -30,4 +32,12 @@ export function useProjections(ticker: string | null) {
 
 export function useRegime() {
     return useSWR("regime", fetchRegime);
+}
+
+export function useMacro() {
+    return useSWR("macro", fetchMacro);
+}
+
+export function useProjectionChart(ticker: string | null) {
+    return useSWR(ticker ? `projection-chart-${ticker}` : null, () => fetchProjectionChart(ticker!));
 }
