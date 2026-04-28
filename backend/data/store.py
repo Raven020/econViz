@@ -16,14 +16,24 @@ import pandas as pd
 from backend.config import market_date as _market_date
 
 
+def _apply_session_settings(conn):
+    """Memory caps + on-disk spill for the 914 MiB EC2 box.
+    DuckDB shares its buffer manager across all connections to the same
+    database file in the same process, so these settings effectively pin
+    the global pool."""
+    conn.execute("SET memory_limit='512MB'")
+    conn.execute("SET threads=2")
+    conn.execute("SET temp_directory='/tmp/duckdb'")
+    conn.execute("SET preserve_insertion_order=false")
+
+
 def ensure_schema(db_path):
     """One-time schema initialization. Called at app startup, not per-request.
 
     Creates all tables and indexes if they don't exist.
     """
     conn = duckdb.connect(db_path)
-    conn.execute("SET memory_limit='512MB'")
-    conn.execute("SET threads=2")
+    _apply_session_settings(conn)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS price_history (
             instrument VARCHAR,
@@ -63,10 +73,9 @@ def ensure_schema(db_path):
 
 
 def connect(db_path):
-    """Lightweight connection — no DDL. Use for per-request connections."""
+    """Per-request connection used by the API server."""
     conn = duckdb.connect(db_path)
-    conn.execute("SET memory_limit='512MB'")
-    conn.execute("SET threads=2")
+    _apply_session_settings(conn)
     return conn
 
 
