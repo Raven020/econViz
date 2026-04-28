@@ -22,6 +22,8 @@ def ensure_schema(db_path):
     Creates all tables and indexes if they don't exist.
     """
     conn = duckdb.connect(db_path)
+    conn.execute("SET memory_limit='512MB'")
+    conn.execute("SET threads=2")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS price_history (
             instrument VARCHAR,
@@ -62,7 +64,10 @@ def ensure_schema(db_path):
 
 def connect(db_path):
     """Lightweight connection — no DDL. Use for per-request connections."""
-    return duckdb.connect(db_path)
+    conn = duckdb.connect(db_path)
+    conn.execute("SET memory_limit='512MB'")
+    conn.execute("SET threads=2")
+    return conn
 
 
 # Keep init_db as an alias for tests that use :memory:

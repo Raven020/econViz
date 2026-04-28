@@ -11,7 +11,7 @@ from scipy.stats import t as students_t
 def simulate_paths(
     means: np.ndarray,
     covariance: np.ndarray,
-    n_paths: int = 10_000,
+    n_paths: int = 5000,
     horizon: int = 30,
     df: int = 5,
 ) -> np.ndarray:
