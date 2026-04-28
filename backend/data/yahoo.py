@@ -32,5 +32,5 @@ def fetch(ticker, start_date, end_date):
         "Close": "close",
         "Volume": "volume",
     })
-    df["date"] = df["date"].dt.date
+    df["date"] = pd.to_datetime(df["date"]).dt.date
     return df[["date", "open", "high", "low", "close", "volume"]]

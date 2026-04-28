@@ -24,6 +24,9 @@ app.include_router(routes_dashboard.router)
 app.include_router(routes_drilldown.router)
 app.include_router(routes_montecarlo.router)
 app.include_router(routes_refresh.router)
+# Refresh is triggered by cron via curl POST /internal/refresh — see
+# /etc/cron.d/econviz-refresh on the EC2 box. Lives in-process because
+# DuckDB doesn't support multi-process write concurrency.
 
 
 @app.get("/health")
