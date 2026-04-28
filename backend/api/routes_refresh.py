@@ -51,6 +51,7 @@ def _fetch_and_store_prices(conn, tickers, fetch_fn, lookback_start, today):
                 df = fetch_fn(identifier, start, today)
                 if not df.empty:
                     write_price_data(conn, name, df)
+                    conn.execute("CHECKPOINT")
         except (requests.RequestException, ValueError, KeyError) as e:
             logger.warning("Fetch failed for %s: %s", name, e)
 
@@ -65,6 +66,7 @@ def _fetch_and_store_macro(conn, series_map, lookback_start, today):
                 df = fred.fetch(series_id, start, today)
                 if not df.empty:
                     write_macro_data(conn, name, df)
+                    conn.execute("CHECKPOINT")
         except (requests.RequestException, ValueError, KeyError) as e:
             logger.warning("FRED fetch failed for %s: %s", name, e)
 
@@ -126,6 +128,12 @@ def refresh(conn: duckdb.DuckDBPyConnection = Depends(get_write_conn)):
 
         projection_dict = {p: vals[:, 0].tolist() for p, vals in cones.items()}
         write_montecarlo(conn, ticker, projection_dict)
+        conn.execute("CHECKPOINT")
+
+    # Force buffer pages to disk so subsequent read endpoints don't fight
+    # the still-dirty refresh state for buffer slots — that's how we used to
+    # see OOMs on /api/instrument/* right after a 15-minute refresh.
+    conn.execute("CHECKPOINT")
 
     return {
         "status": "refreshed",
